@@ -54,14 +54,24 @@ POKEMON_DB = {
 
 # --- 2. HELPERS ---
 def get_sprite(anchor, name, is_back=False):
-    filename = f"{name.lower()} (copy).png" if is_back else f"{name.lower()}.png"
-    if is_back and not os.path.exists(filename): filename = f"{name.lower()}.png"
+    sprite_base = name.lower()
+    candidate_files = (
+        [f"back sprites/{sprite_base} (copy).png", f"back sprites/{sprite_base}.png", f"{sprite_base} (copy).png", f"{sprite_base}.png"]
+        if is_back else
+        [f"front sprites/{sprite_base}.png", f"{sprite_base}.png"]
+    )
+
+    filename = next((f for f in candidate_files if os.path.exists(f)), None)
+    if not filename:
+        return None
+
     temp_gif = filename.replace(".png", "_temp.gif").replace(" ", "_")
     try:
         if not os.path.exists(temp_gif):
             PILImage.open(filename).convert("RGBA").save(temp_gif, "GIF")
         return Image(anchor, temp_gif)
-    except: return None
+    except:
+        return None
 
 def flicker_sprite(win, sprite):
     for _ in range(3):
@@ -174,7 +184,7 @@ def switch_menu(win, team, current_idx):
 def main():
     win = GraphWin("Pokémon Battle", 800, 600)
     player_team = pick_team(win)
-    enemy_team = [Pokemon("Mewtwo"), Pokemon("Gengar"), Pokemon("Snorlax")]
+    enemy_team = [Pokemon(name) for name in random.sample(list(POKEMON_DB.keys()), 3)]
     p_idx, e_idx = 0, 0
     
     try:
