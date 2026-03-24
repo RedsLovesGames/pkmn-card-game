@@ -6,14 +6,30 @@ import os
 import random
 
 # --- 1. DATA & CONFIG ---
+STARTUP_WARNINGS = []
+
 def load_json(filename):
     try:
         with open(filename, 'r') as f:
             return json.load(f)
-    except:
+    except FileNotFoundError:
+        message = f"JSON file not found: {filename}"
+        print(f"[Startup Warning] {message}")
+        STARTUP_WARNINGS.append(message)
+        return {}
+    except json.JSONDecodeError as exc:
+        message = f"Invalid JSON in {filename}: {exc}"
+        print(f"[Startup Warning] {message}")
+        STARTUP_WARNINGS.append(message)
+        return {}
+    except OSError as exc:
+        message = f"Could not read {filename}: {exc}"
+        print(f"[Startup Warning] {message}")
+        STARTUP_WARNINGS.append(message)
         return {}
 
-TYPE_DATA = load_json('typechart (1).json')
+TYPE_DATA_FILE = 'typechart (1).json'
+RAW_TYPE_DATA = load_json(TYPE_DATA_FILE)
 
 MOVE_TYPES = {
     "Seismic Toss": "fighting", "Psychic": "psychic", "Psybeam": "psychic", "Hyper Beam": "normal",
@@ -30,6 +46,43 @@ TYPE_COLORS = {
     "ground": "#E0C068", "flying": "#A890F0", "psychic": "#F85888", "bug": "#A8B820",
     "rock": "#B8A038", "ghost": "#705898", "dragon": "#7038F8"
 }
+
+SAFE_TYPE_DATA = {
+    attack_type: {defend_type: 1.0 for defend_type in TYPE_COLORS.keys()}
+    for attack_type in TYPE_COLORS.keys()
+}
+
+def validate_type_data(data):
+    if not isinstance(data, dict):
+        return None, f"{TYPE_DATA_FILE} must contain a JSON object at the top level."
+    if not data:
+        return None, f"{TYPE_DATA_FILE} is empty or missing required type matchup data."
+
+    validated = {}
+    for attack_type, defending_map in data.items():
+        if not isinstance(attack_type, str):
+            return None, "TYPE_DATA contains a non-string top-level key."
+        if not isinstance(defending_map, dict):
+            return None, f"TYPE_DATA[{attack_type!r}] must be an object of defender-type multipliers."
+
+        validated[attack_type] = {}
+        for defend_type, multiplier in defending_map.items():
+            if not isinstance(defend_type, str):
+                return None, f"TYPE_DATA[{attack_type!r}] contains a non-string defender type."
+            if isinstance(multiplier, bool) or not isinstance(multiplier, (int, float)):
+                return None, (
+                    f"TYPE_DATA[{attack_type!r}][{defend_type!r}] must be numeric; "
+                    f"got {type(multiplier).__name__}."
+                )
+            validated[attack_type][defend_type] = float(multiplier)
+
+    return validated, None
+
+TYPE_DATA, TYPE_DATA_WARNING = validate_type_data(RAW_TYPE_DATA)
+if TYPE_DATA is None:
+    TYPE_DATA = SAFE_TYPE_DATA
+    TYPE_DATA_WARNING = f"{TYPE_DATA_WARNING} Falling back to safe neutral type chart."
+    STARTUP_WARNINGS.append(TYPE_DATA_WARNING)
 
 POKEMON_DB = {
     "Alakazam": ["psychic", 90, 50, 45, 135, [["Seismic Toss", 100, "Physical", True], ["Psychic", 90, "Special"], ["Psybeam", 65, "Special"], ["Hyper Beam", 150, "Special"]]],
@@ -197,7 +250,10 @@ def main():
 
     msg_box = draw_retro_box(win, Point(10, 410), Point(450, 590))
     act_box = draw_retro_box(win, Point(460, 410), Point(790, 590))
-    log_text = Text(Point(230, 500), ""); log_text.setSize(12); log_text.draw(win)
+    startup_warning_text = ""
+    if STARTUP_WARNINGS:
+        startup_warning_text = "WARNING:\n" + "\n".join(STARTUP_WARNINGS)
+    log_text = Text(Point(230, 500), startup_warning_text); log_text.setSize(12); log_text.draw(win)
     
     p_hud = draw_retro_box(win, Point(450, 260), Point(780, 360))
     e_hud = draw_retro_box(win, Point(20, 30), Point(350, 130))
@@ -225,7 +281,11 @@ def main():
         p_sprite.draw(win); e_sprite.draw(win)
 
         if first_load:
-            log_text.setText(f"Trainer wants to battle!\nThey sent out {curr_e.name.upper()}!")
+            battle_intro = f"Trainer wants to battle!\nThey sent out {curr_e.name.upper()}!"
+            if startup_warning_text:
+                log_text.setText(f"{startup_warning_text}\n\n{battle_intro}")
+            else:
+                log_text.setText(battle_intro)
             for _ in range(35): p_sprite.move(10, 0); e_sprite.move(-10, 0); time.sleep(0.01)
             first_load = False
         else:
