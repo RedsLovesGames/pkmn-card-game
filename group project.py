@@ -158,6 +158,26 @@ def pick_team(win):
     for item in win.items[:]: item.undraw()
     return [Pokemon(names[idx]) for idx in selected]
 
+def choose_valid_switch(win, team, current_idx, btns):
+    click = win.getMouse()
+    for i, b in enumerate(btns):
+        if b.getP1().getX() < click.getX() < b.getP2().getX() and b.getP1().getY() < click.getY() < b.getP2().getY():
+            if team[i].current_hp <= 0 or i == current_idx:
+                invalid_msg = "You can't switch to that Pokémon!"
+                if team[i].current_hp <= 0:
+                    invalid_msg = f"{team[i].name.upper()} has fainted!"
+                elif i == current_idx:
+                    invalid_msg = f"{team[i].name.upper()} is already out!"
+                warn = Text(Point(400, 495), invalid_msg)
+                warn.setStyle("bold")
+                warn.setTextColor("red")
+                warn.draw(win)
+                time.sleep(0.8)
+                warn.undraw()
+                return choose_valid_switch(win, team, current_idx, btns)
+            return i
+    return choose_valid_switch(win, team, current_idx, btns)
+
 def switch_menu(win, team, current_idx):
     box = draw_retro_box(win, Point(100, 80), Point(700, 520))
     txt = Text(Point(400, 110), "BRING OUT WHICH POKÉMON?"); txt.setStyle("bold"); txt.draw(win)
@@ -171,12 +191,7 @@ def switch_menu(win, team, current_idx):
         hp_p = int((max(0, p.current_hp)/p.max_hp)*100)
         label_str = f"{p.name.upper()} - FAINTED" if p.current_hp <= 0 else f"{p.name.upper()} - {hp_p}% HP"
         l = Text(Point(400, y_off+40), label_str); l.setStyle("bold"); l.draw(win); labels.append(l)
-    new_idx = -1
-    while new_idx == -1:
-        click = win.getMouse()
-        for i, b in enumerate(btns):
-            if b.getP1().getX() < click.getX() < b.getP2().getX() and b.getP1().getY() < click.getY() < b.getP2().getY():
-                if team[i].current_hp > 0 and i != current_idx: new_idx = i
+    new_idx = choose_valid_switch(win, team, current_idx, btns)
     for item in [box, txt] + btns + labels: item.undraw()
     return new_idx
 
