@@ -6,14 +6,30 @@ import os
 import random
 
 # --- 1. DATA & CONFIG ---
+STARTUP_WARNINGS = []
+
 def load_json(filename):
     try:
         with open(filename, 'r') as f:
             return json.load(f)
-    except:
+    except FileNotFoundError:
+        message = f"JSON file not found: {filename}"
+        print(f"[Startup Warning] {message}")
+        STARTUP_WARNINGS.append(message)
+        return {}
+    except json.JSONDecodeError as exc:
+        message = f"Invalid JSON in {filename}: {exc}"
+        print(f"[Startup Warning] {message}")
+        STARTUP_WARNINGS.append(message)
+        return {}
+    except OSError as exc:
+        message = f"Could not read {filename}: {exc}"
+        print(f"[Startup Warning] {message}")
+        STARTUP_WARNINGS.append(message)
         return {}
 
-TYPE_DATA = load_json('typechart (1).json')
+TYPE_DATA_FILE = 'typechart (1).json'
+RAW_TYPE_DATA = load_json(TYPE_DATA_FILE)
 
 MOVE_TYPES = {
     "Seismic Toss": "fighting", "Psychic": "psychic", "Psybeam": "psychic", "Hyper Beam": "normal",
@@ -256,7 +272,10 @@ def main():
 
     msg_box = draw_retro_box(win, Point(10, 410), Point(450, 590))
     act_box = draw_retro_box(win, Point(460, 410), Point(790, 590))
-    log_text = Text(Point(230, 500), ""); log_text.setSize(12); log_text.draw(win)
+    startup_warning_text = ""
+    if STARTUP_WARNINGS:
+        startup_warning_text = "WARNING:\n" + "\n".join(STARTUP_WARNINGS)
+    log_text = Text(Point(230, 500), startup_warning_text); log_text.setSize(12); log_text.draw(win)
     
     p_hud = draw_retro_box(win, Point(450, 260), Point(780, 360))
     e_hud = draw_retro_box(win, Point(20, 30), Point(350, 130))
@@ -284,7 +303,11 @@ def main():
         p_sprite.draw(win); e_sprite.draw(win)
 
         if first_load:
-            log_text.setText(f"Trainer wants to battle!\nThey sent out {curr_e.name.upper()}!")
+            battle_intro = f"Trainer wants to battle!\nThey sent out {curr_e.name.upper()}!"
+            if startup_warning_text:
+                log_text.setText(f"{startup_warning_text}\n\n{battle_intro}")
+            else:
+                log_text.setText(battle_intro)
             for _ in range(35): p_sprite.move(10, 0); e_sprite.move(-10, 0); time.sleep(0.01)
             first_load = False
         else:
