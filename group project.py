@@ -173,6 +173,52 @@ def smooth_hp_drop(win, bar, pct_text, start_hp, end_hp, max_hp, x_start, y_top)
         time.sleep(BATTLE_CONFIG["animation"]["hp_drop_frame_delay"])
     return bar
 
+def save_match_state(path, player_team, enemy_team, p_idx, e_idx):
+    state = {
+        "player_team": [{"name": p.name, "current_hp": p.current_hp} for p in player_team],
+        "enemy_team": [{"name": p.name, "current_hp": p.current_hp} for p in enemy_team],
+        "p_idx": p_idx,
+        "e_idx": e_idx
+    }
+    with open(path, "w") as f:
+        json.dump(state, f)
+
+def load_match_state(path):
+    with open(path, "r") as f:
+        state = json.load(f)
+
+    player_state = state.get("player_team")
+    enemy_state = state.get("enemy_team")
+    p_idx = state.get("p_idx")
+    e_idx = state.get("e_idx")
+
+    if not isinstance(player_state, list) or not isinstance(enemy_state, list):
+        raise ValueError("Invalid save data: teams are missing.")
+    if len(player_state) != 3 or len(enemy_state) != 3:
+        raise ValueError("Invalid save data: team sizes are incorrect.")
+    if not isinstance(p_idx, int) or not isinstance(e_idx, int):
+        raise ValueError("Invalid save data: indexes are missing.")
+    if not (0 <= p_idx < 3) or not (0 <= e_idx < 3):
+        raise ValueError("Invalid save data: indexes out of range.")
+
+    def rebuild_team(team_state):
+        team = []
+        for mon_data in team_state:
+            name = mon_data.get("name")
+            hp = mon_data.get("current_hp")
+            if name not in POKEMON_DB:
+                raise ValueError(f"Invalid save data: unknown Pokémon {name}.")
+            mon = Pokemon(name)
+            if not isinstance(hp, int):
+                raise ValueError(f"Invalid save data: bad HP for {name}.")
+            mon.current_hp = max(0, min(mon.max_hp, hp))
+            team.append(mon)
+        return team
+
+    player_team = rebuild_team(player_state)
+    enemy_team = rebuild_team(enemy_state)
+    return player_team, enemy_team, p_idx, e_idx
+
 # --- 3. CLASSES ---
 class Pokemon:
     def __init__(self, name):
@@ -258,9 +304,27 @@ def switch_menu(win, team, current_idx):
 # --- 5. MAIN ---
 def main():
     win = GraphWin("Pokémon Battle", 800, 600)
-    player_team = pick_team(win)
-    enemy_team = [Pokemon(name) for name in random.sample(list(POKEMON_DB.keys()), 3)]
-    p_idx, e_idx = 0, 0
+    player_team, enemy_team, p_idx, e_idx = None, None, 0, 0
+
+    resume_requested = False
+    if os.path.exists(SAVE_FILE):
+        try:
+            choice = input("Resume last match? (y/n): ").strip().lower()
+            resume_requested = choice in ("y", "yes")
+        except:
+            resume_requested = False
+
+    if resume_requested:
+        try:
+            player_team, enemy_team, p_idx, e_idx = load_match_state(SAVE_FILE)
+        except:
+            print("Could not load previous save. Starting a new match.")
+
+    if player_team is None or enemy_team is None:
+        player_team = pick_team(win)
+        enemy_team = [Pokemon(name) for name in random.sample(list(POKEMON_DB.keys()), 3)]
+        p_idx, e_idx = 0, 0
+        save_match_state(SAVE_FILE, player_team, enemy_team, p_idx, e_idx)
     
     try:
         bg_pil = PILImage.open("background.webp").resize((800, 600))
@@ -338,6 +402,7 @@ def main():
 
             if action[0] == "switch":
                 p_idx = switch_menu(win, player_team, p_idx)
+                save_match_state(SAVE_FILE, player_team, enemy_team, p_idx, e_idx)
                 p_sprite.undraw(); e_sprite.undraw(); break 
             else:
                 ai_move = random.choice(curr_e.moves)
@@ -401,6 +466,7 @@ def main():
                 if curr_p.current_hp <= 0:
                     log_text.setText(f"{curr_p.name.upper()}\nfainted!"); time.sleep(BATTLE_CONFIG["animation"]["faint_message_delay"])
                     if any(p.current_hp > 0 for p in player_team): p_idx = switch_menu(win, player_team, p_idx)
+                    save_match_state(SAVE_FILE, player_team, enemy_team, p_idx, e_idx)
                     p_sprite.undraw(); e_sprite.undraw(); break
 
                 e_hp_bar = process_end_turn_status(win, curr_e, e_hp_bar, e_pct_txt, log_text, 100, 90)
@@ -411,6 +477,11 @@ def main():
     final_box = draw_retro_box(win, Point(200, 200), Point(600, 400))
     res_txt = Text(Point(400, 300), "YOU WON!" if e_idx >= 3 else "YOU LOST...")
     res_txt.setSize(24); res_txt.setStyle("bold"); res_txt.draw(win)
+    if os.path.exists(SAVE_FILE):
+        try:
+            os.remove(SAVE_FILE)
+        except:
+            pass
     win.getMouse(); win.close()
 
 if __name__ == "__main__": main()
