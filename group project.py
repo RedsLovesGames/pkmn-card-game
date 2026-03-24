@@ -115,6 +115,23 @@ def smooth_hp_drop(win, bar, pct_text, start_hp, end_hp, max_hp, x_start, y_top)
         time.sleep(0.005)
     return bar
 
+def render_action_buttons(btns, btn_lbls, moves, highlighted_idx):
+    for i, mv in enumerate(moves):
+        btn_lbls[i].setText(f"{i+1}: {mv.name.upper()}")
+        btns[i].setFill(TYPE_COLORS.get(mv.type, "white"))
+        if i == highlighted_idx:
+            btns[i].setOutline("#1e90ff")
+            btns[i].setWidth(4)
+        else:
+            btns[i].setOutline("black")
+            btns[i].setWidth(1)
+
+def update_move_info(info_title, info_type, info_power, info_category, move):
+    info_title.setText(f"MOVE: {move.name.upper()}")
+    info_type.setText(f"Type: {move.type.upper()}")
+    info_power.setText(f"Power: {move.power}")
+    info_category.setText(f"Category: {move.category}")
+
 # --- 3. CLASSES ---
 class Pokemon:
     def __init__(self, name):
@@ -197,7 +214,12 @@ def main():
 
     msg_box = draw_retro_box(win, Point(10, 410), Point(450, 590))
     act_box = draw_retro_box(win, Point(460, 410), Point(790, 590))
+    move_info_box = draw_retro_box(win, Point(460, 300), Point(790, 400))
     log_text = Text(Point(230, 500), ""); log_text.setSize(12); log_text.draw(win)
+    info_title = Text(Point(625, 325), "MOVE:"); info_title.setStyle("bold"); info_title.draw(win)
+    info_type = Text(Point(625, 345), "Type:"); info_type.draw(win)
+    info_power = Text(Point(625, 362), "Power:"); info_power.draw(win)
+    info_category = Text(Point(625, 379), "Category:"); info_category.draw(win)
     
     p_hud = draw_retro_box(win, Point(450, 260), Point(780, 360))
     e_hud = draw_retro_box(win, Point(20, 30), Point(350, 130))
@@ -214,9 +236,10 @@ def main():
         r = Rectangle(Point(x, y), Point(x+140, y+50)); r.draw(win); btns.append(r)
         l = Text(Point(x+70, y+25), ""); l.draw(win); btn_lbls.append(l)
     sw_btn = Rectangle(Point(560, 550), Point(700, 580)); sw_btn.setFill("#ffa502"); sw_btn.draw(win); btns.append(sw_btn)
-    Text(Point(630, 565), "PKMN").draw(win)
+    sw_lbl = Text(Point(630, 565), "S: SWITCH"); sw_lbl.setStyle("bold"); sw_lbl.draw(win)
 
     first_load = True
+    quit_confirmed = False
     while e_idx < 3 and p_idx < 3:
         curr_p, curr_e = player_team[p_idx], enemy_team[e_idx]
         p_name_txt.setText(curr_p.name.upper()); e_name_txt.setText(curr_e.name.upper())
@@ -243,18 +266,50 @@ def main():
             e_hp_bar.undraw(); e_hp_bar = Rectangle(Point(100, 90), Point(100+(1.8*e_p), 100))
             e_hp_bar.setFill("#2ed573" if e_p > 30 else "#ff4757"); e_hp_bar.draw(win)
 
-            for i in range(4): 
-                mv = curr_p.moves[i]
-                btn_lbls[i].setText(mv.name.upper()); btns[i].setFill(TYPE_COLORS.get(mv.type, "white"))
+            highlighted_idx = 0
+            render_action_buttons(btns, btn_lbls, curr_p.moves, highlighted_idx)
+            update_move_info(info_title, info_type, info_power, info_category, curr_p.moves[highlighted_idx])
 
             action = None
+            quit_armed = False
             while not action:
-                click = win.getMouse()
-                for i, b in enumerate(btns):
-                    if b.getP1().getX() < click.getX() < b.getP2().getX() and b.getP1().getY() < click.getY() < b.getP2().getY():
-                        action = ("attack", curr_p.moves[i]) if i < 4 else ("switch", None)
+                key = win.checkKey().lower()
+                if key in ("1", "2", "3", "4"):
+                    highlighted_idx = int(key) - 1
+                    render_action_buttons(btns, btn_lbls, curr_p.moves, highlighted_idx)
+                    update_move_info(info_title, info_type, info_power, info_category, curr_p.moves[highlighted_idx])
+                    action = ("attack", curr_p.moves[highlighted_idx])
+                    continue
+                elif key == "s":
+                    action = ("switch", None)
+                    continue
+                elif key == "q":
+                    if quit_armed:
+                        quit_confirmed = True
+                        action = ("quit", None)
+                        continue
+                    quit_armed = True
+                    log_text.setText("Press Q again to confirm quit.")
 
-            if action[0] == "switch":
+                click = win.checkMouse()
+                if click:
+                    for i, b in enumerate(btns):
+                        if b.getP1().getX() < click.getX() < b.getP2().getX() and b.getP1().getY() < click.getY() < b.getP2().getY():
+                            if i < 4:
+                                highlighted_idx = i
+                                render_action_buttons(btns, btn_lbls, curr_p.moves, highlighted_idx)
+                                update_move_info(info_title, info_type, info_power, info_category, curr_p.moves[highlighted_idx])
+                                action = ("attack", curr_p.moves[i])
+                            else:
+                                action = ("switch", None)
+                time.sleep(0.02)
+
+            if action[0] == "quit":
+                p_idx = 3
+                e_idx = 0
+                p_sprite.undraw(); e_sprite.undraw()
+                break
+            elif action[0] == "switch":
                 p_idx = switch_menu(win, player_team, p_idx)
                 p_sprite.undraw(); e_sprite.undraw(); break 
             else:
@@ -291,9 +346,15 @@ def main():
                     log_text.setText(f"{curr_p.name.upper()}\nfainted!"); time.sleep(1.5)
                     if any(p.current_hp > 0 for p in player_team): p_idx = switch_menu(win, player_team, p_idx)
                     p_sprite.undraw(); e_sprite.undraw(); break
+        if quit_confirmed:
+            break
 
     final_box = draw_retro_box(win, Point(200, 200), Point(600, 400))
-    res_txt = Text(Point(400, 300), "YOU WON!" if e_idx >= 3 else "YOU LOST...")
+    if quit_confirmed:
+        end_msg = "YOU FORFEITED."
+    else:
+        end_msg = "YOU WON!" if e_idx >= 3 else "YOU LOST..."
+    res_txt = Text(Point(400, 300), end_msg)
     res_txt.setSize(24); res_txt.setStyle("bold"); res_txt.draw(win)
     win.getMouse(); win.close()
 
