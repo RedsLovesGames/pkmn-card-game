@@ -475,7 +475,10 @@ def main():
                     p_sprite.undraw(); e_sprite.undraw(); break
 
     final_box = draw_retro_box(win, Point(200, 200), Point(600, 400))
-    res_txt = Text(Point(400, 300), "YOU WON!" if e_idx >= 3 else "YOU LOST...")
+    result_text = "YOU WON!" if e_idx >= 3 else "YOU LOST..."
+    set_log_message(result_text)
+    write_battle_log()
+    res_txt = Text(Point(400, 300), result_text)
     res_txt.setSize(24); res_txt.setStyle("bold"); res_txt.draw(win)
     if os.path.exists(SAVE_FILE):
         try:
