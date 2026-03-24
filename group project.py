@@ -6,14 +6,30 @@ import os
 import random
 
 # --- 1. DATA & CONFIG ---
+STARTUP_WARNINGS = []
+
 def load_json(filename):
     try:
         with open(filename, 'r') as f:
             return json.load(f)
-    except:
+    except FileNotFoundError:
+        message = f"JSON file not found: {filename}"
+        print(f"[Startup Warning] {message}")
+        STARTUP_WARNINGS.append(message)
+        return {}
+    except json.JSONDecodeError as exc:
+        message = f"Invalid JSON in {filename}: {exc}"
+        print(f"[Startup Warning] {message}")
+        STARTUP_WARNINGS.append(message)
+        return {}
+    except OSError as exc:
+        message = f"Could not read {filename}: {exc}"
+        print(f"[Startup Warning] {message}")
+        STARTUP_WARNINGS.append(message)
         return {}
 
-TYPE_DATA = load_json('typechart (1).json')
+TYPE_DATA_FILE = 'typechart (1).json'
+RAW_TYPE_DATA = load_json(TYPE_DATA_FILE)
 
 MOVE_TYPES = {
     "Seismic Toss": "fighting", "Psychic": "psychic", "Psybeam": "psychic", "Hyper Beam": "normal",
@@ -31,42 +47,7 @@ TYPE_COLORS = {
     "rock": "#B8A038", "ghost": "#705898", "dragon": "#7038F8"
 }
 
-BATTLE_CONFIG = {
-    "crit_chance": 0.0625,
-    "stab_multiplier": 1.5,
-    "low_hp_threshold": 30,
-    "animation": {
-        "flicker_cycle_count": 3,
-        "flicker_frame_delay": 0.08,
-        "hp_drop_frame_delay": 0.005,
-        "entry_frames": 35,
-        "entry_frame_delay": 0.01,
-        "attack_message_delay": 0.5,
-        "effect_message_delay": 0.8,
-        "faint_message_delay": 1.5
-    }
-}
-
-POKEMON_DB = {
-    "Alakazam": ["psychic", 90, 50, 45, 135, [["Seismic Toss", 100, "Physical", True], ["Psychic", 90, "Special"], ["Psybeam", 65, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Chansey": ["normal", 250, 5, 5, 105, [["Ice Beam", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Psychic", 90, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Cloyster": ["water", 110, 95, 180, 85, [["Surf", 90, "Special"], ["Blizzard", 110, "Special"], ["Ice Beam", 90, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Dragonite": ["dragon", 160, 134, 95, 100, [["Hyper Beam", 150, "Special"], ["Blizzard", 110, "Special"], ["Thunder", 110, "Special"], ["Ice Beam", 90, "Special"]]],
-    "Dugtrio": ["ground", 85, 80, 50, 70, [["Earthquake", 100, "Physical"], ["Rock Slide", 75, "Physical"], ["Dig", 80, "Physical"], ["Slash", 70, "Physical"]]],
-    "Gengar": ["ghost", 100, 65, 60, 130, [["Psychic", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Mega Drain", 40, "Special"], ["Explosion", 250, "Physical"]]],
-    "Gyarados": ["water", 155, 125, 79, 100, [["Hyper Beam", 150, "Special"], ["Surf", 90, "Special"], ["Blizzard", 110, "Special"], ["Hydro Pump", 110, "Special"]]],
-    "Magneton": ["electric", 100, 60, 95, 120, [["Thunderbolt", 90, "Special"], ["Thunder", 110, "Special"], ["Swift", 60, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Mew": ["psychic", 150, 100, 100, 100, [["Psychic", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Ice Beam", 90, "Special"], ["Earthquake", 100, "Physical"]]],
-    "Mewtwo": ["psychic", 190, 110, 90, 154, [["Psychic", 90, "Special"], ["Ice Beam", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Porygon": ["normal", 100, 60, 70, 85, [["Tri Attack", 80, "Special"], ["Thunderbolt", 90, "Special"], ["Ice Beam", 90, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Scyther": ["bug", 120, 110, 80, 55, [["Slash", 70, "Physical"], ["Wing Attack", 60, "Physical"], ["Leech Life", 80, "Physical"], ["Hyper Beam", 150, "Special"]]],
-    "Slowbro": ["water", 145, 75, 110, 100, [["Surf", 90, "Special"], ["Psychic", 90, "Special"], ["Blizzard", 110, "Special"], ["Ice Beam", 90, "Special"]]],
-    "Snorlax": ["normal", 220, 110, 65, 110, [["Body Slam", 85, "Physical"], ["Hyper Beam", 150, "Special"], ["Earthquake", 100, "Physical"], ["Blizzard", 110, "Special"]]],
-    "Starmie": ["water", 105, 75, 85, 100, [["Surf", 90, "Special"], ["Psychic", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Ice Beam", 90, "Special"]]],
-    "Tentacruel": ["water", 130, 70, 65, 120, [["Surf", 90, "Special"], ["Hydro Pump", 110, "Special"], ["Blizzard", 110, "Special"], ["Ice Beam", 90, "Special"]]],
-    "Venusaur": ["grass", 150, 82, 83, 100, [["Solar Beam", 120, "Special"], ["Razor Leaf", 55, "Physical"], ["Mega Drain", 40, "Special"], ["Earthquake", 100, "Physical"]]],
-    "Zapdos": ["electric", 160, 90, 85, 125, [["Thunderbolt", 90, "Special"], ["Thunder", 110, "Special"], ["Drill Peck", 80, "Physical"], ["Hyper Beam", 150, "Special"]]]
-}
+POKEMON_DB = load_json('pokemon_db.json')
 
 # --- 2. HELPERS ---
 def get_sprite(anchor, name, is_back=False):
@@ -109,7 +90,68 @@ def calculate_damage(attacker, defender, move):
     crit = 2.0 if random.random() < BATTLE_CONFIG["crit_chance"] else 1.0
     stab = BATTLE_CONFIG["stab_multiplier"] if move.type == attacker.type else 1.0
     t_mult = TYPE_DATA.get(move.type, {}).get(defender.type, 1.0)
-    return int(base * crit * stab * t_mult), crit > 1.0, t_mult
+    burn_mult = 0.5 if attacker.status == "burn" else 1.0
+    return max(1, int(base * crit * stab * t_mult * burn_mult)), crit > 1.0, t_mult
+
+def apply_status(target, status, log_text):
+    if target.status is not None:
+        return
+    target.status = status
+    if status == "burn":
+        target.status_turns = 0
+        log_text.setText(f"{target.name.upper()} was burned!")
+    elif status == "paralysis":
+        target.status_turns = 0
+        target.speed_modifier = 0.5
+        log_text.setText(f"{target.name.upper()} is paralyzed!")
+    elif status == "sleep":
+        target.status_turns = random.randint(1, 3)
+        log_text.setText(f"{target.name.upper()} fell asleep!")
+    time.sleep(0.8)
+
+def try_apply_move_status(move, target, log_text):
+    if target.status is not None:
+        return
+
+    status_to_apply = None
+    if move.name == "Tri Attack" and random.random() < 0.35:
+        status_to_apply = random.choice(["burn", "paralysis", "sleep"])
+    elif move.type == "electric" and random.random() < 0.2:
+        status_to_apply = "paralysis"
+    elif move.name in ("Psychic", "Psybeam") and random.random() < 0.15:
+        status_to_apply = "sleep"
+    elif move.name == "Explosion" and random.random() < 0.2:
+        status_to_apply = "burn"
+
+    if status_to_apply:
+        apply_status(target, status_to_apply, log_text)
+
+def process_turn_status(pokemon, log_text):
+    if pokemon.status == "sleep":
+        if pokemon.status_turns > 0:
+            log_text.setText(f"{pokemon.name.upper()} is fast asleep!")
+            pokemon.status_turns -= 1
+            time.sleep(0.8)
+            return False
+        pokemon.status = None
+        log_text.setText(f"{pokemon.name.upper()} woke up!")
+        time.sleep(0.8)
+    elif pokemon.status == "paralysis":
+        if random.random() < 0.25:
+            log_text.setText(f"{pokemon.name.upper()} is paralyzed!\nIt can't move!")
+            time.sleep(0.8)
+            return False
+    return True
+
+def process_end_turn_status(win, pokemon, hp_bar, pct_text, log_text, x_start, y_top):
+    if pokemon.status == "burn" and pokemon.current_hp > 0:
+        burn_dmg = max(1, pokemon.max_hp // 16)
+        old_hp = pokemon.current_hp
+        pokemon.current_hp = max(0, pokemon.current_hp - burn_dmg)
+        log_text.setText(f"{pokemon.name.upper()} is hurt by its burn!")
+        time.sleep(0.8)
+        hp_bar = smooth_hp_drop(win, hp_bar, pct_text, old_hp, pokemon.current_hp, pokemon.max_hp, x_start, y_top)
+    return hp_bar
 
 def smooth_hp_drop(win, bar, pct_text, start_hp, end_hp, max_hp, x_start, y_top):
     actual_end = max(0, end_hp)
@@ -135,16 +177,18 @@ def smooth_hp_drop(win, bar, pct_text, start_hp, end_hp, max_hp, x_start, y_top)
 class Pokemon:
     def __init__(self, name):
         data = POKEMON_DB[name]
-        self.name, self.type = name, data[0]
-        self.max_hp = self.current_hp = data[1]
-        self.att, self.dfn, self.spc = data[2], data[3], data[4]
+        self.name, self.type = name, data["type"]
+        self.max_hp = self.current_hp = data["max_hp"]
+        self.att, self.dfn, self.spc = data["attack"], data["defense"], data["special"]
         self.level = 50
-        self.moves = [Move(m) for m in data[5]]
+        self.moves = [Move(m) for m in data["moves"]]
 
 class Move:
     def __init__(self, data):
-        self.name, self.power, self.category = data[0], data[1], data[2]
-        self.fixed = data[3] if len(data) > 3 else False
+        self.name = data["name"]
+        self.power = data["power"]
+        self.category = data["category"]
+        self.fixed = data.get("fixed", False)
         self.type = MOVE_TYPES.get(self.name, "normal")
 
 # --- 4. SCREENS ---
@@ -158,7 +202,7 @@ def pick_team(win):
         col, row = i % 6, i // 6
         x, y = 75 + (col * 130), 125 + (row * 155)
         r = Rectangle(Point(x-60, y-70), Point(x+60, y+70))
-        r.setFill(TYPE_COLORS.get(POKEMON_DB[name][0], "white"))
+        r.setFill(TYPE_COLORS.get(POKEMON_DB[name]["type"], "white"))
         r.setOutline("white"); r.draw(win); buttons.append(r)
         img = get_sprite(Point(x, y-10), name)
         if img: img.draw(win)
@@ -174,6 +218,26 @@ def pick_team(win):
     for item in win.items[:]: item.undraw()
     return [Pokemon(names[idx]) for idx in selected]
 
+def choose_valid_switch(win, team, current_idx, btns):
+    click = win.getMouse()
+    for i, b in enumerate(btns):
+        if b.getP1().getX() < click.getX() < b.getP2().getX() and b.getP1().getY() < click.getY() < b.getP2().getY():
+            if team[i].current_hp <= 0 or i == current_idx:
+                invalid_msg = "You can't switch to that Pokémon!"
+                if team[i].current_hp <= 0:
+                    invalid_msg = f"{team[i].name.upper()} has fainted!"
+                elif i == current_idx:
+                    invalid_msg = f"{team[i].name.upper()} is already out!"
+                warn = Text(Point(400, 495), invalid_msg)
+                warn.setStyle("bold")
+                warn.setTextColor("red")
+                warn.draw(win)
+                time.sleep(0.8)
+                warn.undraw()
+                return choose_valid_switch(win, team, current_idx, btns)
+            return i
+    return choose_valid_switch(win, team, current_idx, btns)
+
 def switch_menu(win, team, current_idx):
     box = draw_retro_box(win, Point(100, 80), Point(700, 520))
     txt = Text(Point(400, 110), "BRING OUT WHICH POKÉMON?"); txt.setStyle("bold"); txt.draw(win)
@@ -187,12 +251,7 @@ def switch_menu(win, team, current_idx):
         hp_p = int((max(0, p.current_hp)/p.max_hp)*100)
         label_str = f"{p.name.upper()} - FAINTED" if p.current_hp <= 0 else f"{p.name.upper()} - {hp_p}% HP"
         l = Text(Point(400, y_off+40), label_str); l.setStyle("bold"); l.draw(win); labels.append(l)
-    new_idx = -1
-    while new_idx == -1:
-        click = win.getMouse()
-        for i, b in enumerate(btns):
-            if b.getP1().getX() < click.getX() < b.getP2().getX() and b.getP1().getY() < click.getY() < b.getP2().getY():
-                if team[i].current_hp > 0 and i != current_idx: new_idx = i
+    new_idx = choose_valid_switch(win, team, current_idx, btns)
     for item in [box, txt] + btns + labels: item.undraw()
     return new_idx
 
@@ -213,7 +272,10 @@ def main():
 
     msg_box = draw_retro_box(win, Point(10, 410), Point(450, 590))
     act_box = draw_retro_box(win, Point(460, 410), Point(790, 590))
-    log_text = Text(Point(230, 500), ""); log_text.setSize(12); log_text.draw(win)
+    startup_warning_text = ""
+    if STARTUP_WARNINGS:
+        startup_warning_text = "WARNING:\n" + "\n".join(STARTUP_WARNINGS)
+    log_text = Text(Point(230, 500), startup_warning_text); log_text.setSize(12); log_text.draw(win)
     
     p_hud = draw_retro_box(win, Point(450, 260), Point(780, 360))
     e_hud = draw_retro_box(win, Point(20, 30), Point(350, 130))
@@ -241,9 +303,12 @@ def main():
         p_sprite.draw(win); e_sprite.draw(win)
 
         if first_load:
-            log_text.setText(f"Trainer wants to battle!\nThey sent out {curr_e.name.upper()}!")
-            for _ in range(BATTLE_CONFIG["animation"]["entry_frames"]):
-                p_sprite.move(10, 0); e_sprite.move(-10, 0); time.sleep(BATTLE_CONFIG["animation"]["entry_frame_delay"])
+            battle_intro = f"Trainer wants to battle!\nThey sent out {curr_e.name.upper()}!"
+            if startup_warning_text:
+                log_text.setText(f"{startup_warning_text}\n\n{battle_intro}")
+            else:
+                log_text.setText(battle_intro)
+            for _ in range(35): p_sprite.move(10, 0); e_sprite.move(-10, 0); time.sleep(0.01)
             first_load = False
         else:
             p_sprite.undraw(); p_sprite = get_sprite(Point(200, 340), curr_p.name, is_back=True); p_sprite.draw(win)
@@ -275,38 +340,72 @@ def main():
                 p_idx = switch_menu(win, player_team, p_idx)
                 p_sprite.undraw(); e_sprite.undraw(); break 
             else:
-                dmg, crit, mult = calculate_damage(curr_p, curr_e, action[1])
-                old_hp = curr_e.current_hp; curr_e.current_hp -= dmg
-                log_text.setText(f"{curr_p.name.upper()} used\n{action[1].name.upper()}!"); time.sleep(BATTLE_CONFIG["animation"]["attack_message_delay"])
-                
-                # FLICKER ENEMY ON HIT
-                flicker_sprite(win, e_sprite)
-                e_hp_bar = smooth_hp_drop(win, e_hp_bar, e_pct_txt, old_hp, curr_e.current_hp, curr_e.max_hp, 100, 90)
-                
-                if crit: log_text.setText("Critical hit!"); time.sleep(BATTLE_CONFIG["animation"]["effect_message_delay"])
-                if mult > 1: log_text.setText("It's super effective!"); time.sleep(BATTLE_CONFIG["animation"]["effect_message_delay"])
-                elif mult < 1 and mult > 0: log_text.setText("It's not very effective..."); time.sleep(BATTLE_CONFIG["animation"]["effect_message_delay"])
-                
-                if curr_e.current_hp <= 0:
-                    e_idx += 1; log_text.setText(f"Enemy {curr_e.name.upper()}\nfainted!"); time.sleep(BATTLE_CONFIG["animation"]["faint_message_delay"])
+                ai_move = random.choice(curr_e.moves)
+                p_speed = curr_p.speed * curr_p.speed_modifier
+                e_speed = curr_e.speed * curr_e.speed_modifier
+                if p_speed > e_speed:
+                    turn_order = [("player", action[1]), ("enemy", ai_move)]
+                elif e_speed > p_speed:
+                    turn_order = [("enemy", ai_move), ("player", action[1])]
+                else:
+                    turn_order = [("player", action[1]), ("enemy", ai_move)] if random.random() < 0.5 else [("enemy", ai_move), ("player", action[1])]
+
+                round_finished = False
+                for side, move in turn_order:
+                    attacker = curr_p if side == "player" else curr_e
+                    defender = curr_e if side == "player" else curr_p
+                    if attacker.current_hp <= 0 or defender.current_hp <= 0:
+                        continue
+                    if not process_turn_status(attacker, log_text):
+                        continue
+
+                    if side == "player":
+                        log_text.setText(f"{curr_p.name.upper()} used\n{move.name.upper()}!")
+                    else:
+                        log_text.setText(f"Enemy {curr_e.name.upper()} used\n{move.name.upper()}!")
+                    time.sleep(0.5)
+
+                    dmg, crit, mult = calculate_damage(attacker, defender, move)
+                    old_hp = defender.current_hp
+                    defender.current_hp -= dmg
+
+                    if side == "player":
+                        flicker_sprite(win, e_sprite)
+                        e_hp_bar = smooth_hp_drop(win, e_hp_bar, e_pct_txt, old_hp, defender.current_hp, defender.max_hp, 100, 90)
+                    else:
+                        flicker_sprite(win, p_sprite)
+                        p_hp_bar = smooth_hp_drop(win, p_hp_bar, p_pct_txt, old_hp, defender.current_hp, defender.max_hp, 530, 320)
+
+                    if crit: log_text.setText("Critical hit!"); time.sleep(0.8)
+                    if mult > 1: log_text.setText("It's super effective!"); time.sleep(0.8)
+                    elif mult < 1 and mult > 0: log_text.setText("It's not very effective..."); time.sleep(0.8)
+
+                    try_apply_move_status(move, defender, log_text)
+
+                    if defender.current_hp <= 0:
+                        if side == "player":
+                            e_idx += 1
+                            log_text.setText(f"Enemy {curr_e.name.upper()}\nfainted!")
+                        else:
+                            log_text.setText(f"{curr_p.name.upper()}\nfainted!")
+                        time.sleep(1.5)
+                        round_finished = True
+                        break
+
+                if round_finished:
+                    if curr_p.current_hp <= 0:
+                        if any(p.current_hp > 0 for p in player_team): p_idx = switch_menu(win, player_team, p_idx)
                     p_sprite.undraw(); e_sprite.undraw(); break
 
-                ai_move = random.choice(curr_e.moves)
-                dmg, crit, mult = calculate_damage(curr_e, curr_p, ai_move)
-                old_hp = curr_p.current_hp; curr_p.current_hp -= dmg
-                log_text.setText(f"Enemy {curr_e.name.upper()} used\n{ai_move.name.upper()}!"); time.sleep(BATTLE_CONFIG["animation"]["attack_message_delay"])
-                
-                # FLICKER PLAYER ON HIT
-                flicker_sprite(win, p_sprite)
-                p_hp_bar = smooth_hp_drop(win, p_hp_bar, p_pct_txt, old_hp, curr_p.current_hp, curr_p.max_hp, 530, 320)
-
-                if crit: log_text.setText("Critical hit!"); time.sleep(BATTLE_CONFIG["animation"]["effect_message_delay"])
-                if mult > 1: log_text.setText("It's super effective!"); time.sleep(BATTLE_CONFIG["animation"]["effect_message_delay"])
-                elif mult < 1 and mult > 0: log_text.setText("It's not very effective..."); time.sleep(BATTLE_CONFIG["animation"]["effect_message_delay"])
-
+                p_hp_bar = process_end_turn_status(win, curr_p, p_hp_bar, p_pct_txt, log_text, 530, 320)
                 if curr_p.current_hp <= 0:
                     log_text.setText(f"{curr_p.name.upper()}\nfainted!"); time.sleep(BATTLE_CONFIG["animation"]["faint_message_delay"])
                     if any(p.current_hp > 0 for p in player_team): p_idx = switch_menu(win, player_team, p_idx)
+                    p_sprite.undraw(); e_sprite.undraw(); break
+
+                e_hp_bar = process_end_turn_status(win, curr_e, e_hp_bar, e_pct_txt, log_text, 100, 90)
+                if curr_e.current_hp <= 0:
+                    e_idx += 1; log_text.setText(f"Enemy {curr_e.name.upper()}\nfainted!"); time.sleep(1.5)
                     p_sprite.undraw(); e_sprite.undraw(); break
 
     final_box = draw_retro_box(win, Point(200, 200), Point(600, 400))
