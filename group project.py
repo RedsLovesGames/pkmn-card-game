@@ -32,24 +32,24 @@ TYPE_COLORS = {
 }
 
 POKEMON_DB = {
-    "Alakazam": ["psychic", 90, 50, 45, 135, [["Seismic Toss", 100, "Physical", True], ["Psychic", 90, "Special"], ["Psybeam", 65, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Chansey": ["normal", 250, 5, 5, 105, [["Ice Beam", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Psychic", 90, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Cloyster": ["water", 110, 95, 180, 85, [["Surf", 90, "Special"], ["Blizzard", 110, "Special"], ["Ice Beam", 90, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Dragonite": ["dragon", 160, 134, 95, 100, [["Hyper Beam", 150, "Special"], ["Blizzard", 110, "Special"], ["Thunder", 110, "Special"], ["Ice Beam", 90, "Special"]]],
-    "Dugtrio": ["ground", 85, 80, 50, 70, [["Earthquake", 100, "Physical"], ["Rock Slide", 75, "Physical"], ["Dig", 80, "Physical"], ["Slash", 70, "Physical"]]],
-    "Gengar": ["ghost", 100, 65, 60, 130, [["Psychic", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Mega Drain", 40, "Special"], ["Explosion", 250, "Physical"]]],
-    "Gyarados": ["water", 155, 125, 79, 100, [["Hyper Beam", 150, "Special"], ["Surf", 90, "Special"], ["Blizzard", 110, "Special"], ["Hydro Pump", 110, "Special"]]],
-    "Magneton": ["electric", 100, 60, 95, 120, [["Thunderbolt", 90, "Special"], ["Thunder", 110, "Special"], ["Swift", 60, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Mew": ["psychic", 150, 100, 100, 100, [["Psychic", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Ice Beam", 90, "Special"], ["Earthquake", 100, "Physical"]]],
-    "Mewtwo": ["psychic", 190, 110, 90, 154, [["Psychic", 90, "Special"], ["Ice Beam", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Porygon": ["normal", 100, 60, 70, 85, [["Tri Attack", 80, "Special"], ["Thunderbolt", 90, "Special"], ["Ice Beam", 90, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Scyther": ["bug", 120, 110, 80, 55, [["Slash", 70, "Physical"], ["Wing Attack", 60, "Physical"], ["Leech Life", 80, "Physical"], ["Hyper Beam", 150, "Special"]]],
-    "Slowbro": ["water", 145, 75, 110, 100, [["Surf", 90, "Special"], ["Psychic", 90, "Special"], ["Blizzard", 110, "Special"], ["Ice Beam", 90, "Special"]]],
-    "Snorlax": ["normal", 220, 110, 65, 110, [["Body Slam", 85, "Physical"], ["Hyper Beam", 150, "Special"], ["Earthquake", 100, "Physical"], ["Blizzard", 110, "Special"]]],
-    "Starmie": ["water", 105, 75, 85, 100, [["Surf", 90, "Special"], ["Psychic", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Ice Beam", 90, "Special"]]],
-    "Tentacruel": ["water", 130, 70, 65, 120, [["Surf", 90, "Special"], ["Hydro Pump", 110, "Special"], ["Blizzard", 110, "Special"], ["Ice Beam", 90, "Special"]]],
-    "Venusaur": ["grass", 150, 82, 83, 100, [["Solar Beam", 120, "Special"], ["Razor Leaf", 55, "Physical"], ["Mega Drain", 40, "Special"], ["Earthquake", 100, "Physical"]]],
-    "Zapdos": ["electric", 160, 90, 85, 125, [["Thunderbolt", 90, "Special"], ["Thunder", 110, "Special"], ["Drill Peck", 80, "Physical"], ["Hyper Beam", 150, "Special"]]]
+    "Alakazam": {"type": "psychic", "max_hp": 90, "attack": 50, "defense": 45, "special": 135, "moves": [{"name": "Seismic Toss", "power": 100, "category": "Physical", "fixed": True}, {"name": "Psychic", "power": 90, "category": "Special"}, {"name": "Psybeam", "power": 65, "category": "Special"}, {"name": "Hyper Beam", "power": 150, "category": "Special"}]},
+    "Chansey": {"type": "normal", "max_hp": 250, "attack": 5, "defense": 5, "special": 105, "moves": [{"name": "Ice Beam", "power": 90, "category": "Special"}, {"name": "Thunderbolt", "power": 90, "category": "Special"}, {"name": "Psychic", "power": 90, "category": "Special"}, {"name": "Hyper Beam", "power": 150, "category": "Special"}]},
+    "Cloyster": {"type": "water", "max_hp": 110, "attack": 95, "defense": 180, "special": 85, "moves": [{"name": "Surf", "power": 90, "category": "Special"}, {"name": "Blizzard", "power": 110, "category": "Special"}, {"name": "Ice Beam", "power": 90, "category": "Special"}, {"name": "Hyper Beam", "power": 150, "category": "Special"}]},
+    "Dragonite": {"type": "dragon", "max_hp": 160, "attack": 134, "defense": 95, "special": 100, "moves": [{"name": "Hyper Beam", "power": 150, "category": "Special"}, {"name": "Blizzard", "power": 110, "category": "Special"}, {"name": "Thunder", "power": 110, "category": "Special"}, {"name": "Ice Beam", "power": 90, "category": "Special"}]},
+    "Dugtrio": {"type": "ground", "max_hp": 85, "attack": 80, "defense": 50, "special": 70, "moves": [{"name": "Earthquake", "power": 100, "category": "Physical"}, {"name": "Rock Slide", "power": 75, "category": "Physical"}, {"name": "Dig", "power": 80, "category": "Physical"}, {"name": "Slash", "power": 70, "category": "Physical"}]},
+    "Gengar": {"type": "ghost", "max_hp": 100, "attack": 65, "defense": 60, "special": 130, "moves": [{"name": "Psychic", "power": 90, "category": "Special"}, {"name": "Thunderbolt", "power": 90, "category": "Special"}, {"name": "Mega Drain", "power": 40, "category": "Special"}, {"name": "Explosion", "power": 250, "category": "Physical"}]},
+    "Gyarados": {"type": "water", "max_hp": 155, "attack": 125, "defense": 79, "special": 100, "moves": [{"name": "Hyper Beam", "power": 150, "category": "Special"}, {"name": "Surf", "power": 90, "category": "Special"}, {"name": "Blizzard", "power": 110, "category": "Special"}, {"name": "Hydro Pump", "power": 110, "category": "Special"}]},
+    "Magneton": {"type": "electric", "max_hp": 100, "attack": 60, "defense": 95, "special": 120, "moves": [{"name": "Thunderbolt", "power": 90, "category": "Special"}, {"name": "Thunder", "power": 110, "category": "Special"}, {"name": "Swift", "power": 60, "category": "Special"}, {"name": "Hyper Beam", "power": 150, "category": "Special"}]},
+    "Mew": {"type": "psychic", "max_hp": 150, "attack": 100, "defense": 100, "special": 100, "moves": [{"name": "Psychic", "power": 90, "category": "Special"}, {"name": "Thunderbolt", "power": 90, "category": "Special"}, {"name": "Ice Beam", "power": 90, "category": "Special"}, {"name": "Earthquake", "power": 100, "category": "Physical"}]},
+    "Mewtwo": {"type": "psychic", "max_hp": 190, "attack": 110, "defense": 90, "special": 154, "moves": [{"name": "Psychic", "power": 90, "category": "Special"}, {"name": "Ice Beam", "power": 90, "category": "Special"}, {"name": "Thunderbolt", "power": 90, "category": "Special"}, {"name": "Hyper Beam", "power": 150, "category": "Special"}]},
+    "Porygon": {"type": "normal", "max_hp": 100, "attack": 60, "defense": 70, "special": 85, "moves": [{"name": "Tri Attack", "power": 80, "category": "Special"}, {"name": "Thunderbolt", "power": 90, "category": "Special"}, {"name": "Ice Beam", "power": 90, "category": "Special"}, {"name": "Hyper Beam", "power": 150, "category": "Special"}]},
+    "Scyther": {"type": "bug", "max_hp": 120, "attack": 110, "defense": 80, "special": 55, "moves": [{"name": "Slash", "power": 70, "category": "Physical"}, {"name": "Wing Attack", "power": 60, "category": "Physical"}, {"name": "Leech Life", "power": 80, "category": "Physical"}, {"name": "Hyper Beam", "power": 150, "category": "Special"}]},
+    "Slowbro": {"type": "water", "max_hp": 145, "attack": 75, "defense": 110, "special": 100, "moves": [{"name": "Surf", "power": 90, "category": "Special"}, {"name": "Psychic", "power": 90, "category": "Special"}, {"name": "Blizzard", "power": 110, "category": "Special"}, {"name": "Ice Beam", "power": 90, "category": "Special"}]},
+    "Snorlax": {"type": "normal", "max_hp": 220, "attack": 110, "defense": 65, "special": 110, "moves": [{"name": "Body Slam", "power": 85, "category": "Physical"}, {"name": "Hyper Beam", "power": 150, "category": "Special"}, {"name": "Earthquake", "power": 100, "category": "Physical"}, {"name": "Blizzard", "power": 110, "category": "Special"}]},
+    "Starmie": {"type": "water", "max_hp": 105, "attack": 75, "defense": 85, "special": 100, "moves": [{"name": "Surf", "power": 90, "category": "Special"}, {"name": "Psychic", "power": 90, "category": "Special"}, {"name": "Thunderbolt", "power": 90, "category": "Special"}, {"name": "Ice Beam", "power": 90, "category": "Special"}]},
+    "Tentacruel": {"type": "water", "max_hp": 130, "attack": 70, "defense": 65, "special": 120, "moves": [{"name": "Surf", "power": 90, "category": "Special"}, {"name": "Hydro Pump", "power": 110, "category": "Special"}, {"name": "Blizzard", "power": 110, "category": "Special"}, {"name": "Ice Beam", "power": 90, "category": "Special"}]},
+    "Venusaur": {"type": "grass", "max_hp": 150, "attack": 82, "defense": 83, "special": 100, "moves": [{"name": "Solar Beam", "power": 120, "category": "Special"}, {"name": "Razor Leaf", "power": 55, "category": "Physical"}, {"name": "Mega Drain", "power": 40, "category": "Special"}, {"name": "Earthquake", "power": 100, "category": "Physical"}]},
+    "Zapdos": {"type": "electric", "max_hp": 160, "attack": 90, "defense": 85, "special": 125, "moves": [{"name": "Thunderbolt", "power": 90, "category": "Special"}, {"name": "Thunder", "power": 110, "category": "Special"}, {"name": "Drill Peck", "power": 80, "category": "Physical"}, {"name": "Hyper Beam", "power": 150, "category": "Special"}]}
 }
 
 # --- 2. HELPERS ---
@@ -119,16 +119,18 @@ def smooth_hp_drop(win, bar, pct_text, start_hp, end_hp, max_hp, x_start, y_top)
 class Pokemon:
     def __init__(self, name):
         data = POKEMON_DB[name]
-        self.name, self.type = name, data[0]
-        self.max_hp = self.current_hp = data[1]
-        self.att, self.dfn, self.spc = data[2], data[3], data[4]
+        self.name, self.type = name, data["type"]
+        self.max_hp = self.current_hp = data["max_hp"]
+        self.att, self.dfn, self.spc = data["attack"], data["defense"], data["special"]
         self.level = 50
-        self.moves = [Move(m) for m in data[5]]
+        self.moves = [Move(m) for m in data["moves"]]
 
 class Move:
     def __init__(self, data):
-        self.name, self.power, self.category = data[0], data[1], data[2]
-        self.fixed = data[3] if len(data) > 3 else False
+        self.name = data["name"]
+        self.power = data["power"]
+        self.category = data["category"]
+        self.fixed = data.get("fixed", False)
         self.type = MOVE_TYPES.get(self.name, "normal")
 
 # --- 4. SCREENS ---
@@ -142,7 +144,7 @@ def pick_team(win):
         col, row = i % 6, i // 6
         x, y = 75 + (col * 130), 125 + (row * 155)
         r = Rectangle(Point(x-60, y-70), Point(x+60, y+70))
-        r.setFill(TYPE_COLORS.get(POKEMON_DB[name][0], "white"))
+        r.setFill(TYPE_COLORS.get(POKEMON_DB[name]["type"], "white"))
         r.setOutline("white"); r.draw(win); buttons.append(r)
         img = get_sprite(Point(x, y-10), name)
         if img: img.draw(win)
