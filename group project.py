@@ -356,9 +356,10 @@ def main():
         r = Rectangle(Point(x, y), Point(x+140, y+50)); r.draw(win); btns.append(r)
         l = Text(Point(x+70, y+25), ""); l.draw(win); btn_lbls.append(l)
     sw_btn = Rectangle(Point(560, 550), Point(700, 580)); sw_btn.setFill("#ffa502"); sw_btn.draw(win); btns.append(sw_btn)
-    Text(Point(630, 565), "PKMN").draw(win)
+    sw_lbl = Text(Point(630, 565), "S: SWITCH"); sw_lbl.setStyle("bold"); sw_lbl.draw(win)
 
     first_load = True
+    quit_confirmed = False
     while e_idx < 3 and p_idx < 3:
         curr_p, curr_e = player_team[p_idx], enemy_team[e_idx]
         p_name_txt.setText(curr_p.name.upper()); e_name_txt.setText(curr_e.name.upper())
@@ -389,18 +390,50 @@ def main():
             e_hp_bar.undraw(); e_hp_bar = Rectangle(Point(100, 90), Point(100+(1.8*e_p), 100))
             e_hp_bar.setFill("#2ed573" if e_p > BATTLE_CONFIG["low_hp_threshold"] else "#ff4757"); e_hp_bar.draw(win)
 
-            for i in range(4): 
-                mv = curr_p.moves[i]
-                btn_lbls[i].setText(mv.name.upper()); btns[i].setFill(TYPE_COLORS.get(mv.type, "white"))
+            highlighted_idx = 0
+            render_action_buttons(btns, btn_lbls, curr_p.moves, highlighted_idx)
+            update_move_info(info_title, info_type, info_power, info_category, curr_p.moves[highlighted_idx])
 
             action = None
+            quit_armed = False
             while not action:
-                click = win.getMouse()
-                for i, b in enumerate(btns):
-                    if b.getP1().getX() < click.getX() < b.getP2().getX() and b.getP1().getY() < click.getY() < b.getP2().getY():
-                        action = ("attack", curr_p.moves[i]) if i < 4 else ("switch", None)
+                key = win.checkKey().lower()
+                if key in ("1", "2", "3", "4"):
+                    highlighted_idx = int(key) - 1
+                    render_action_buttons(btns, btn_lbls, curr_p.moves, highlighted_idx)
+                    update_move_info(info_title, info_type, info_power, info_category, curr_p.moves[highlighted_idx])
+                    action = ("attack", curr_p.moves[highlighted_idx])
+                    continue
+                elif key == "s":
+                    action = ("switch", None)
+                    continue
+                elif key == "q":
+                    if quit_armed:
+                        quit_confirmed = True
+                        action = ("quit", None)
+                        continue
+                    quit_armed = True
+                    log_text.setText("Press Q again to confirm quit.")
 
-            if action[0] == "switch":
+                click = win.checkMouse()
+                if click:
+                    for i, b in enumerate(btns):
+                        if b.getP1().getX() < click.getX() < b.getP2().getX() and b.getP1().getY() < click.getY() < b.getP2().getY():
+                            if i < 4:
+                                highlighted_idx = i
+                                render_action_buttons(btns, btn_lbls, curr_p.moves, highlighted_idx)
+                                update_move_info(info_title, info_type, info_power, info_category, curr_p.moves[highlighted_idx])
+                                action = ("attack", curr_p.moves[i])
+                            else:
+                                action = ("switch", None)
+                time.sleep(0.02)
+
+            if action[0] == "quit":
+                p_idx = 3
+                e_idx = 0
+                p_sprite.undraw(); e_sprite.undraw()
+                break
+            elif action[0] == "switch":
                 p_idx = switch_menu(win, player_team, p_idx)
                 save_match_state(SAVE_FILE, player_team, enemy_team, p_idx, e_idx)
                 p_sprite.undraw(); e_sprite.undraw(); break 
@@ -473,6 +506,8 @@ def main():
                 if curr_e.current_hp <= 0:
                     e_idx += 1; log_text.setText(f"Enemy {curr_e.name.upper()}\nfainted!"); time.sleep(1.5)
                     p_sprite.undraw(); e_sprite.undraw(); break
+        if quit_confirmed:
+            break
 
     final_box = draw_retro_box(win, Point(200, 200), Point(600, 400))
     result_text = "YOU WON!" if e_idx >= 3 else "YOU LOST..."
