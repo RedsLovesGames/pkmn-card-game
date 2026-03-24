@@ -180,9 +180,44 @@ def switch_menu(win, team, current_idx):
     for item in [box, txt] + btns + labels: item.undraw()
     return new_idx
 
-# --- 5. MAIN ---
-def main():
-    win = GraphWin("Pokémon Battle", 800, 600)
+def clear_window(win):
+    for item in win.items[:]:
+        item.undraw()
+
+def show_overlay_message(win, title, body_lines, wait_for_click=True):
+    clear_window(win)
+    win.setBackground("#1e272e")
+    panel = draw_retro_box(win, Point(120, 120), Point(680, 480))
+    heading = Text(Point(400, 190), title)
+    heading.setSize(24); heading.setStyle("bold"); heading.setTextColor("#f5f6fa"); heading.draw(win)
+    body = Text(Point(400, 300), "\n".join(body_lines))
+    body.setSize(14); body.setTextColor("#f5f6fa"); body.draw(win)
+    if wait_for_click:
+        prompt = Text(Point(400, 430), "Click to continue")
+        prompt.setStyle("italic"); prompt.setTextColor("#dcdde1"); prompt.draw(win)
+        win.getMouse()
+    for item in [panel, heading, body]:
+        item.undraw()
+    if wait_for_click:
+        prompt.undraw()
+
+def write_tournament_results(results, filepath="tournament_results.txt"):
+    with open(filepath, "w") as f:
+        f.write("POKÉMON TOURNAMENT RESULTS\n")
+        f.write("=" * 28 + "\n")
+        f.write(f"Champion: {results['champion'].upper()}\n")
+        f.write(f"Final Score: Player {results['score']['player']} - Enemy {results['score']['enemy']}\n\n")
+        for battle in results["battle_history"]:
+            f.write(
+                f"Round {battle['round']}: "
+                f"{battle['winner'].upper()} won | "
+                f"Player survivors: {battle['player_survivors']} | "
+                f"Enemy survivors: {battle['enemy_survivors']}\n"
+            )
+
+def run_single_battle(win):
+    clear_window(win)
+    win.setBackground("white")
     player_team = pick_team(win)
     enemy_team = [Pokemon(name) for name in random.sample(list(POKEMON_DB.keys()), 3)]
     p_idx, e_idx = 0, 0
@@ -292,9 +327,77 @@ def main():
                     if any(p.current_hp > 0 for p in player_team): p_idx = switch_menu(win, player_team, p_idx)
                     p_sprite.undraw(); e_sprite.undraw(); break
 
-    final_box = draw_retro_box(win, Point(200, 200), Point(600, 400))
-    res_txt = Text(Point(400, 300), "YOU WON!" if e_idx >= 3 else "YOU LOST...")
-    res_txt.setSize(24); res_txt.setStyle("bold"); res_txt.draw(win)
-    win.getMouse(); win.close()
+    winner = "player" if e_idx >= 3 else "enemy"
+    result = {
+        "winner": winner,
+        "player_survivors": sum(1 for p in player_team if p.current_hp > 0),
+        "enemy_survivors": sum(1 for p in enemy_team if p.current_hp > 0),
+        "player_team": [p.name for p in player_team],
+        "enemy_team": [p.name for p in enemy_team],
+    }
+    clear_window(win)
+    return result
+
+def run_tournament(win, target_wins=2, save_to_file=False):
+    score = {"player": 0, "enemy": 0}
+    history = []
+    round_number = 1
+
+    show_overlay_message(
+        win,
+        "TOURNAMENT START",
+        [
+            "First to 2 wins becomes champion!",
+            "Each round is a full 3v3 battle.",
+        ]
+    )
+
+    while score["player"] < target_wins and score["enemy"] < target_wins:
+        show_overlay_message(
+            win,
+            f"ROUND {round_number}",
+            [
+                f"Current score: Player {score['player']} - Enemy {score['enemy']}",
+                "Prepare for battle!",
+            ]
+        )
+        round_result = run_single_battle(win)
+        score[round_result["winner"]] += 1
+        round_result["round"] = round_number
+        history.append(round_result)
+
+        show_overlay_message(
+            win,
+            f"ROUND {round_number} RESULT",
+            [
+                f"Winner: {round_result['winner'].upper()}",
+                f"Survivors - Player: {round_result['player_survivors']} | Enemy: {round_result['enemy_survivors']}",
+                f"Score: Player {score['player']} - Enemy {score['enemy']}",
+            ]
+        )
+        round_number += 1
+
+    champion = "player" if score["player"] >= target_wins else "enemy"
+    results = {"champion": champion, "score": score, "battle_history": history}
+
+    if save_to_file:
+        write_tournament_results(results)
+
+    show_overlay_message(
+        win,
+        "TOURNAMENT COMPLETE",
+        [
+            f"Champion: {champion.upper()}",
+            f"Final score: Player {score['player']} - Enemy {score['enemy']}",
+            "Results saved to file." if save_to_file else "Results not saved to file.",
+        ]
+    )
+    return results
+
+# --- 5. MAIN ---
+def main():
+    win = GraphWin("Pokémon Battle Tournament", 800, 600)
+    run_tournament(win, target_wins=2, save_to_file=False)
+    win.close()
 
 if __name__ == "__main__": main()
