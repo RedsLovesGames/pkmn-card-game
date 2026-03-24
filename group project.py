@@ -93,7 +93,68 @@ def calculate_damage(attacker, defender, move):
     crit = 2.0 if random.random() < 0.0625 else 1.0
     stab = 1.5 if move.type == attacker.type else 1.0
     t_mult = TYPE_DATA.get(move.type, {}).get(defender.type, 1.0)
-    return int(base * crit * stab * t_mult), crit > 1.0, t_mult
+    burn_mult = 0.5 if attacker.status == "burn" else 1.0
+    return max(1, int(base * crit * stab * t_mult * burn_mult)), crit > 1.0, t_mult
+
+def apply_status(target, status, log_text):
+    if target.status is not None:
+        return
+    target.status = status
+    if status == "burn":
+        target.status_turns = 0
+        log_text.setText(f"{target.name.upper()} was burned!")
+    elif status == "paralysis":
+        target.status_turns = 0
+        target.speed_modifier = 0.5
+        log_text.setText(f"{target.name.upper()} is paralyzed!")
+    elif status == "sleep":
+        target.status_turns = random.randint(1, 3)
+        log_text.setText(f"{target.name.upper()} fell asleep!")
+    time.sleep(0.8)
+
+def try_apply_move_status(move, target, log_text):
+    if target.status is not None:
+        return
+
+    status_to_apply = None
+    if move.name == "Tri Attack" and random.random() < 0.35:
+        status_to_apply = random.choice(["burn", "paralysis", "sleep"])
+    elif move.type == "electric" and random.random() < 0.2:
+        status_to_apply = "paralysis"
+    elif move.name in ("Psychic", "Psybeam") and random.random() < 0.15:
+        status_to_apply = "sleep"
+    elif move.name == "Explosion" and random.random() < 0.2:
+        status_to_apply = "burn"
+
+    if status_to_apply:
+        apply_status(target, status_to_apply, log_text)
+
+def process_turn_status(pokemon, log_text):
+    if pokemon.status == "sleep":
+        if pokemon.status_turns > 0:
+            log_text.setText(f"{pokemon.name.upper()} is fast asleep!")
+            pokemon.status_turns -= 1
+            time.sleep(0.8)
+            return False
+        pokemon.status = None
+        log_text.setText(f"{pokemon.name.upper()} woke up!")
+        time.sleep(0.8)
+    elif pokemon.status == "paralysis":
+        if random.random() < 0.25:
+            log_text.setText(f"{pokemon.name.upper()} is paralyzed!\nIt can't move!")
+            time.sleep(0.8)
+            return False
+    return True
+
+def process_end_turn_status(win, pokemon, hp_bar, pct_text, log_text, x_start, y_top):
+    if pokemon.status == "burn" and pokemon.current_hp > 0:
+        burn_dmg = max(1, pokemon.max_hp // 16)
+        old_hp = pokemon.current_hp
+        pokemon.current_hp = max(0, pokemon.current_hp - burn_dmg)
+        log_text.setText(f"{pokemon.name.upper()} is hurt by its burn!")
+        time.sleep(0.8)
+        hp_bar = smooth_hp_drop(win, hp_bar, pct_text, old_hp, pokemon.current_hp, pokemon.max_hp, x_start, y_top)
+    return hp_bar
 
 def smooth_hp_drop(win, bar, pct_text, start_hp, end_hp, max_hp, x_start, y_top):
     actual_end = max(0, end_hp)
@@ -122,6 +183,10 @@ class Pokemon:
         self.name, self.type = name, data[0]
         self.max_hp = self.current_hp = data[1]
         self.att, self.dfn, self.spc = data[2], data[3], data[4]
+        self.speed = data[4]
+        self.status = None
+        self.status_turns = 0
+        self.speed_modifier = 1.0
         self.level = 50
         self.moves = [Move(m) for m in data[5]]
 
@@ -258,38 +323,72 @@ def main():
                 p_idx = switch_menu(win, player_team, p_idx)
                 p_sprite.undraw(); e_sprite.undraw(); break 
             else:
-                dmg, crit, mult = calculate_damage(curr_p, curr_e, action[1])
-                old_hp = curr_e.current_hp; curr_e.current_hp -= dmg
-                log_text.setText(f"{curr_p.name.upper()} used\n{action[1].name.upper()}!"); time.sleep(0.5)
-                
-                # FLICKER ENEMY ON HIT
-                flicker_sprite(win, e_sprite)
-                e_hp_bar = smooth_hp_drop(win, e_hp_bar, e_pct_txt, old_hp, curr_e.current_hp, curr_e.max_hp, 100, 90)
-                
-                if crit: log_text.setText("Critical hit!"); time.sleep(0.8)
-                if mult > 1: log_text.setText("It's super effective!"); time.sleep(0.8)
-                elif mult < 1 and mult > 0: log_text.setText("It's not very effective..."); time.sleep(0.8)
-                
-                if curr_e.current_hp <= 0:
-                    e_idx += 1; log_text.setText(f"Enemy {curr_e.name.upper()}\nfainted!"); time.sleep(1.5)
+                ai_move = random.choice(curr_e.moves)
+                p_speed = curr_p.speed * curr_p.speed_modifier
+                e_speed = curr_e.speed * curr_e.speed_modifier
+                if p_speed > e_speed:
+                    turn_order = [("player", action[1]), ("enemy", ai_move)]
+                elif e_speed > p_speed:
+                    turn_order = [("enemy", ai_move), ("player", action[1])]
+                else:
+                    turn_order = [("player", action[1]), ("enemy", ai_move)] if random.random() < 0.5 else [("enemy", ai_move), ("player", action[1])]
+
+                round_finished = False
+                for side, move in turn_order:
+                    attacker = curr_p if side == "player" else curr_e
+                    defender = curr_e if side == "player" else curr_p
+                    if attacker.current_hp <= 0 or defender.current_hp <= 0:
+                        continue
+                    if not process_turn_status(attacker, log_text):
+                        continue
+
+                    if side == "player":
+                        log_text.setText(f"{curr_p.name.upper()} used\n{move.name.upper()}!")
+                    else:
+                        log_text.setText(f"Enemy {curr_e.name.upper()} used\n{move.name.upper()}!")
+                    time.sleep(0.5)
+
+                    dmg, crit, mult = calculate_damage(attacker, defender, move)
+                    old_hp = defender.current_hp
+                    defender.current_hp -= dmg
+
+                    if side == "player":
+                        flicker_sprite(win, e_sprite)
+                        e_hp_bar = smooth_hp_drop(win, e_hp_bar, e_pct_txt, old_hp, defender.current_hp, defender.max_hp, 100, 90)
+                    else:
+                        flicker_sprite(win, p_sprite)
+                        p_hp_bar = smooth_hp_drop(win, p_hp_bar, p_pct_txt, old_hp, defender.current_hp, defender.max_hp, 530, 320)
+
+                    if crit: log_text.setText("Critical hit!"); time.sleep(0.8)
+                    if mult > 1: log_text.setText("It's super effective!"); time.sleep(0.8)
+                    elif mult < 1 and mult > 0: log_text.setText("It's not very effective..."); time.sleep(0.8)
+
+                    try_apply_move_status(move, defender, log_text)
+
+                    if defender.current_hp <= 0:
+                        if side == "player":
+                            e_idx += 1
+                            log_text.setText(f"Enemy {curr_e.name.upper()}\nfainted!")
+                        else:
+                            log_text.setText(f"{curr_p.name.upper()}\nfainted!")
+                        time.sleep(1.5)
+                        round_finished = True
+                        break
+
+                if round_finished:
+                    if curr_p.current_hp <= 0:
+                        if any(p.current_hp > 0 for p in player_team): p_idx = switch_menu(win, player_team, p_idx)
                     p_sprite.undraw(); e_sprite.undraw(); break
 
-                ai_move = random.choice(curr_e.moves)
-                dmg, crit, mult = calculate_damage(curr_e, curr_p, ai_move)
-                old_hp = curr_p.current_hp; curr_p.current_hp -= dmg
-                log_text.setText(f"Enemy {curr_e.name.upper()} used\n{ai_move.name.upper()}!"); time.sleep(0.5)
-                
-                # FLICKER PLAYER ON HIT
-                flicker_sprite(win, p_sprite)
-                p_hp_bar = smooth_hp_drop(win, p_hp_bar, p_pct_txt, old_hp, curr_p.current_hp, curr_p.max_hp, 530, 320)
-
-                if crit: log_text.setText("Critical hit!"); time.sleep(0.8)
-                if mult > 1: log_text.setText("It's super effective!"); time.sleep(0.8)
-                elif mult < 1 and mult > 0: log_text.setText("It's not very effective..."); time.sleep(0.8)
-
+                p_hp_bar = process_end_turn_status(win, curr_p, p_hp_bar, p_pct_txt, log_text, 530, 320)
                 if curr_p.current_hp <= 0:
                     log_text.setText(f"{curr_p.name.upper()}\nfainted!"); time.sleep(1.5)
                     if any(p.current_hp > 0 for p in player_team): p_idx = switch_menu(win, player_team, p_idx)
+                    p_sprite.undraw(); e_sprite.undraw(); break
+
+                e_hp_bar = process_end_turn_status(win, curr_e, e_hp_bar, e_pct_txt, log_text, 100, 90)
+                if curr_e.current_hp <= 0:
+                    e_idx += 1; log_text.setText(f"Enemy {curr_e.name.upper()}\nfainted!"); time.sleep(1.5)
                     p_sprite.undraw(); e_sprite.undraw(); break
 
     final_box = draw_retro_box(win, Point(200, 200), Point(600, 400))
