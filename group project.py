@@ -115,6 +115,21 @@ def smooth_hp_drop(win, bar, pct_text, start_hp, end_hp, max_hp, x_start, y_top)
         time.sleep(0.005)
     return bar
 
+def make_battle_log_writer():
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    log_events = []
+
+    def push(message):
+        log_events.append(message)
+
+    def flush():
+        os.makedirs("logs", exist_ok=True)
+        log_path = os.path.join("logs", f"battle_{timestamp}.txt")
+        with open(log_path, "w", encoding="utf-8") as log_file:
+            log_file.write("\n".join(log_events))
+
+    return push, flush
+
 # --- 3. CLASSES ---
 class Pokemon:
     def __init__(self, name):
@@ -198,6 +213,11 @@ def main():
     msg_box = draw_retro_box(win, Point(10, 410), Point(450, 590))
     act_box = draw_retro_box(win, Point(460, 410), Point(790, 590))
     log_text = Text(Point(230, 500), ""); log_text.setSize(12); log_text.draw(win)
+    add_log_event, write_battle_log = make_battle_log_writer()
+
+    def set_log_message(message):
+        log_text.setText(message)
+        add_log_event(message)
     
     p_hud = draw_retro_box(win, Point(450, 260), Point(780, 360))
     e_hud = draw_retro_box(win, Point(20, 30), Point(350, 130))
@@ -225,7 +245,7 @@ def main():
         p_sprite.draw(win); e_sprite.draw(win)
 
         if first_load:
-            log_text.setText(f"Trainer wants to battle!\nThey sent out {curr_e.name.upper()}!")
+            set_log_message(f"Trainer wants to battle!\nThey sent out {curr_e.name.upper()}!")
             for _ in range(35): p_sprite.move(10, 0); e_sprite.move(-10, 0); time.sleep(0.01)
             first_load = False
         else:
@@ -260,40 +280,43 @@ def main():
             else:
                 dmg, crit, mult = calculate_damage(curr_p, curr_e, action[1])
                 old_hp = curr_e.current_hp; curr_e.current_hp -= dmg
-                log_text.setText(f"{curr_p.name.upper()} used\n{action[1].name.upper()}!"); time.sleep(0.5)
+                set_log_message(f"{curr_p.name.upper()} used\n{action[1].name.upper()}!"); time.sleep(0.5)
                 
                 # FLICKER ENEMY ON HIT
                 flicker_sprite(win, e_sprite)
                 e_hp_bar = smooth_hp_drop(win, e_hp_bar, e_pct_txt, old_hp, curr_e.current_hp, curr_e.max_hp, 100, 90)
                 
-                if crit: log_text.setText("Critical hit!"); time.sleep(0.8)
-                if mult > 1: log_text.setText("It's super effective!"); time.sleep(0.8)
-                elif mult < 1 and mult > 0: log_text.setText("It's not very effective..."); time.sleep(0.8)
+                if crit: set_log_message("Critical hit!"); time.sleep(0.8)
+                if mult > 1: set_log_message("It's super effective!"); time.sleep(0.8)
+                elif mult < 1 and mult > 0: set_log_message("It's not very effective..."); time.sleep(0.8)
                 
                 if curr_e.current_hp <= 0:
-                    e_idx += 1; log_text.setText(f"Enemy {curr_e.name.upper()}\nfainted!"); time.sleep(1.5)
+                    e_idx += 1; set_log_message(f"Enemy {curr_e.name.upper()}\nfainted!"); time.sleep(1.5)
                     p_sprite.undraw(); e_sprite.undraw(); break
 
                 ai_move = random.choice(curr_e.moves)
                 dmg, crit, mult = calculate_damage(curr_e, curr_p, ai_move)
                 old_hp = curr_p.current_hp; curr_p.current_hp -= dmg
-                log_text.setText(f"Enemy {curr_e.name.upper()} used\n{ai_move.name.upper()}!"); time.sleep(0.5)
+                set_log_message(f"Enemy {curr_e.name.upper()} used\n{ai_move.name.upper()}!"); time.sleep(0.5)
                 
                 # FLICKER PLAYER ON HIT
                 flicker_sprite(win, p_sprite)
                 p_hp_bar = smooth_hp_drop(win, p_hp_bar, p_pct_txt, old_hp, curr_p.current_hp, curr_p.max_hp, 530, 320)
 
-                if crit: log_text.setText("Critical hit!"); time.sleep(0.8)
-                if mult > 1: log_text.setText("It's super effective!"); time.sleep(0.8)
-                elif mult < 1 and mult > 0: log_text.setText("It's not very effective..."); time.sleep(0.8)
+                if crit: set_log_message("Critical hit!"); time.sleep(0.8)
+                if mult > 1: set_log_message("It's super effective!"); time.sleep(0.8)
+                elif mult < 1 and mult > 0: set_log_message("It's not very effective..."); time.sleep(0.8)
 
                 if curr_p.current_hp <= 0:
-                    log_text.setText(f"{curr_p.name.upper()}\nfainted!"); time.sleep(1.5)
+                    set_log_message(f"{curr_p.name.upper()}\nfainted!"); time.sleep(1.5)
                     if any(p.current_hp > 0 for p in player_team): p_idx = switch_menu(win, player_team, p_idx)
                     p_sprite.undraw(); e_sprite.undraw(); break
 
     final_box = draw_retro_box(win, Point(200, 200), Point(600, 400))
-    res_txt = Text(Point(400, 300), "YOU WON!" if e_idx >= 3 else "YOU LOST...")
+    result_text = "YOU WON!" if e_idx >= 3 else "YOU LOST..."
+    set_log_message(result_text)
+    write_battle_log()
+    res_txt = Text(Point(400, 300), result_text)
     res_txt.setSize(24); res_txt.setStyle("bold"); res_txt.draw(win)
     win.getMouse(); win.close()
 
