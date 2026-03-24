@@ -71,11 +71,11 @@ def get_sprite(anchor, name, is_back=False):
         return None
 
 def flicker_sprite(win, sprite):
-    for _ in range(3):
+    for _ in range(BATTLE_CONFIG["animation"]["flicker_cycle_count"]):
         sprite.undraw()
-        time.sleep(0.08)
+        time.sleep(BATTLE_CONFIG["animation"]["flicker_frame_delay"])
         sprite.draw(win)
-        time.sleep(0.08)
+        time.sleep(BATTLE_CONFIG["animation"]["flicker_frame_delay"])
 
 def draw_retro_box(win, p1, p2):
     outer = Rectangle(p1, p2)
@@ -87,8 +87,8 @@ def calculate_damage(attacker, defender, move):
     a_stat = attacker.att if move.category == "Physical" else attacker.spc
     d_stat = defender.dfn if move.category == "Physical" else defender.spc
     base = ((((2 * attacker.level / 5 + 2) * move.power * a_stat / d_stat) / 50) + 2)
-    crit = 2.0 if random.random() < 0.0625 else 1.0
-    stab = 1.5 if move.type == attacker.type else 1.0
+    crit = 2.0 if random.random() < BATTLE_CONFIG["crit_chance"] else 1.0
+    stab = BATTLE_CONFIG["stab_multiplier"] if move.type == attacker.type else 1.0
     t_mult = TYPE_DATA.get(move.type, {}).get(defender.type, 1.0)
     burn_mult = 0.5 if attacker.status == "burn" else 1.0
     return max(1, int(base * crit * stab * t_mult * burn_mult)), crit > 1.0, t_mult
@@ -169,8 +169,8 @@ def smooth_hp_drop(win, bar, pct_text, start_hp, end_hp, max_hp, x_start, y_top)
 
         bar.undraw()
         bar = Rectangle(Point(x_start, y_top), Point(x_start + (1.8 * p_val), y_top + 10))
-        bar.setFill("#2ed573" if p_val > 30 else "#ff4757"); bar.draw(win)
-        time.sleep(0.005)
+        bar.setFill("#2ed573" if p_val > BATTLE_CONFIG["low_hp_threshold"] else "#ff4757"); bar.draw(win)
+        time.sleep(BATTLE_CONFIG["animation"]["hp_drop_frame_delay"])
     return bar
 
 # --- 3. CLASSES ---
@@ -321,9 +321,9 @@ def main():
             p_pct_txt.setTextColor("black"); e_pct_txt.setTextColor("black")
             
             p_hp_bar.undraw(); p_hp_bar = Rectangle(Point(530, 320), Point(530+(1.8*p_p), 330))
-            p_hp_bar.setFill("#2ed573" if p_p > 30 else "#ff4757"); p_hp_bar.draw(win)
+            p_hp_bar.setFill("#2ed573" if p_p > BATTLE_CONFIG["low_hp_threshold"] else "#ff4757"); p_hp_bar.draw(win)
             e_hp_bar.undraw(); e_hp_bar = Rectangle(Point(100, 90), Point(100+(1.8*e_p), 100))
-            e_hp_bar.setFill("#2ed573" if e_p > 30 else "#ff4757"); e_hp_bar.draw(win)
+            e_hp_bar.setFill("#2ed573" if e_p > BATTLE_CONFIG["low_hp_threshold"] else "#ff4757"); e_hp_bar.draw(win)
 
             for i in range(4): 
                 mv = curr_p.moves[i]
@@ -399,7 +399,7 @@ def main():
 
                 p_hp_bar = process_end_turn_status(win, curr_p, p_hp_bar, p_pct_txt, log_text, 530, 320)
                 if curr_p.current_hp <= 0:
-                    log_text.setText(f"{curr_p.name.upper()}\nfainted!"); time.sleep(1.5)
+                    log_text.setText(f"{curr_p.name.upper()}\nfainted!"); time.sleep(BATTLE_CONFIG["animation"]["faint_message_delay"])
                     if any(p.current_hp > 0 for p in player_team): p_idx = switch_menu(win, player_team, p_idx)
                     p_sprite.undraw(); e_sprite.undraw(); break
 
