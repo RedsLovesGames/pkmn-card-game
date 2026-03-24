@@ -188,11 +188,12 @@ def main():
     p_idx, e_idx = 0, 0
     
     try:
-        bg_pil = PILImage.open("image_ff336a.png").resize((800, 400))
+        bg_pil = PILImage.open("background.webp").resize((800, 600))
         bg_pil.save("battle_bg_temp.gif", "GIF")
-        background = Image(Point(400, 200), "battle_bg_temp.gif")
+        background = Image(Point(400, 300), "battle_bg_temp.gif")
         background.draw(win)
-    except: win.setBackground("white")
+    except:
+        win.setBackground("white")
 
     msg_box = draw_retro_box(win, Point(10, 410), Point(450, 590))
     act_box = draw_retro_box(win, Point(460, 410), Point(790, 590))
