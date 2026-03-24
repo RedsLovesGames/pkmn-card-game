@@ -31,26 +31,7 @@ TYPE_COLORS = {
     "rock": "#B8A038", "ghost": "#705898", "dragon": "#7038F8"
 }
 
-POKEMON_DB = {
-    "Alakazam": ["psychic", 90, 50, 45, 135, [["Seismic Toss", 100, "Physical", True], ["Psychic", 90, "Special"], ["Psybeam", 65, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Chansey": ["normal", 250, 5, 5, 105, [["Ice Beam", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Psychic", 90, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Cloyster": ["water", 110, 95, 180, 85, [["Surf", 90, "Special"], ["Blizzard", 110, "Special"], ["Ice Beam", 90, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Dragonite": ["dragon", 160, 134, 95, 100, [["Hyper Beam", 150, "Special"], ["Blizzard", 110, "Special"], ["Thunder", 110, "Special"], ["Ice Beam", 90, "Special"]]],
-    "Dugtrio": ["ground", 85, 80, 50, 70, [["Earthquake", 100, "Physical"], ["Rock Slide", 75, "Physical"], ["Dig", 80, "Physical"], ["Slash", 70, "Physical"]]],
-    "Gengar": ["ghost", 100, 65, 60, 130, [["Psychic", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Mega Drain", 40, "Special"], ["Explosion", 250, "Physical"]]],
-    "Gyarados": ["water", 155, 125, 79, 100, [["Hyper Beam", 150, "Special"], ["Surf", 90, "Special"], ["Blizzard", 110, "Special"], ["Hydro Pump", 110, "Special"]]],
-    "Magneton": ["electric", 100, 60, 95, 120, [["Thunderbolt", 90, "Special"], ["Thunder", 110, "Special"], ["Swift", 60, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Mew": ["psychic", 150, 100, 100, 100, [["Psychic", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Ice Beam", 90, "Special"], ["Earthquake", 100, "Physical"]]],
-    "Mewtwo": ["psychic", 190, 110, 90, 154, [["Psychic", 90, "Special"], ["Ice Beam", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Porygon": ["normal", 100, 60, 70, 85, [["Tri Attack", 80, "Special"], ["Thunderbolt", 90, "Special"], ["Ice Beam", 90, "Special"], ["Hyper Beam", 150, "Special"]]],
-    "Scyther": ["bug", 120, 110, 80, 55, [["Slash", 70, "Physical"], ["Wing Attack", 60, "Physical"], ["Leech Life", 80, "Physical"], ["Hyper Beam", 150, "Special"]]],
-    "Slowbro": ["water", 145, 75, 110, 100, [["Surf", 90, "Special"], ["Psychic", 90, "Special"], ["Blizzard", 110, "Special"], ["Ice Beam", 90, "Special"]]],
-    "Snorlax": ["normal", 220, 110, 65, 110, [["Body Slam", 85, "Physical"], ["Hyper Beam", 150, "Special"], ["Earthquake", 100, "Physical"], ["Blizzard", 110, "Special"]]],
-    "Starmie": ["water", 105, 75, 85, 100, [["Surf", 90, "Special"], ["Psychic", 90, "Special"], ["Thunderbolt", 90, "Special"], ["Ice Beam", 90, "Special"]]],
-    "Tentacruel": ["water", 130, 70, 65, 120, [["Surf", 90, "Special"], ["Hydro Pump", 110, "Special"], ["Blizzard", 110, "Special"], ["Ice Beam", 90, "Special"]]],
-    "Venusaur": ["grass", 150, 82, 83, 100, [["Solar Beam", 120, "Special"], ["Razor Leaf", 55, "Physical"], ["Mega Drain", 40, "Special"], ["Earthquake", 100, "Physical"]]],
-    "Zapdos": ["electric", 160, 90, 85, 125, [["Thunderbolt", 90, "Special"], ["Thunder", 110, "Special"], ["Drill Peck", 80, "Physical"], ["Hyper Beam", 150, "Special"]]]
-}
+POKEMON_DB = load_json('pokemon_db.json')
 
 # --- 2. HELPERS ---
 def get_sprite(anchor, name, is_back=False):
@@ -119,16 +100,18 @@ def smooth_hp_drop(win, bar, pct_text, start_hp, end_hp, max_hp, x_start, y_top)
 class Pokemon:
     def __init__(self, name):
         data = POKEMON_DB[name]
-        self.name, self.type = name, data[0]
-        self.max_hp = self.current_hp = data[1]
-        self.att, self.dfn, self.spc = data[2], data[3], data[4]
+        self.name, self.type = name, data["type"]
+        self.max_hp = self.current_hp = data["max_hp"]
+        self.att, self.dfn, self.spc = data["attack"], data["defense"], data["special"]
         self.level = 50
-        self.moves = [Move(m) for m in data[5]]
+        self.moves = [Move(m) for m in data["moves"]]
 
 class Move:
     def __init__(self, data):
-        self.name, self.power, self.category = data[0], data[1], data[2]
-        self.fixed = data[3] if len(data) > 3 else False
+        self.name = data["name"]
+        self.power = data["power"]
+        self.category = data["category"]
+        self.fixed = data.get("fixed", False)
         self.type = MOVE_TYPES.get(self.name, "normal")
 
 # --- 4. SCREENS ---
@@ -142,7 +125,7 @@ def pick_team(win):
         col, row = i % 6, i // 6
         x, y = 75 + (col * 130), 125 + (row * 155)
         r = Rectangle(Point(x-60, y-70), Point(x+60, y+70))
-        r.setFill(TYPE_COLORS.get(POKEMON_DB[name][0], "white"))
+        r.setFill(TYPE_COLORS.get(POKEMON_DB[name]["type"], "white"))
         r.setOutline("white"); r.draw(win); buttons.append(r)
         img = get_sprite(Point(x, y-10), name)
         if img: img.draw(win)
