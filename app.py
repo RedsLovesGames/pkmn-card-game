@@ -47,6 +47,9 @@ LAYOUT = CONFIG["layout"]
 PAUSE = BATTLE_CONFIG["pause"]
 RUNTIME_CONFIG = CONFIG.get("runtime", {})
 DEFAULT_TARGET_FPS = 60
+DEFAULT_MIN_FPS = 24
+DEFAULT_MAX_FPS = 60
+LOW_CPU_TARGET_FPS = 30
 
 TimelineEvent = Tuple[float, int, Callable[[], None]]
 ActionCallback = Callable[[str], None]
@@ -105,12 +108,32 @@ class BattleApp:
             self.renderer.close_window()
 
     def _resolve_target_fps(self) -> int:
-        raw_target_fps = RUNTIME_CONFIG.get("fps", DEFAULT_TARGET_FPS)
-        try:
-            target_fps = int(raw_target_fps)
-        except (TypeError, ValueError):
-            target_fps = DEFAULT_TARGET_FPS
-        return max(1, target_fps)
+        def _read_int(key: str, fallback: int) -> int:
+            try:
+                return int(RUNTIME_CONFIG.get(key, fallback))
+            except (TypeError, ValueError):
+                return fallback
+
+        def _read_bool(key: str, fallback: bool) -> bool:
+            value = RUNTIME_CONFIG.get(key, fallback)
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                return value.strip().lower() in {"1", "true", "yes", "on"}
+            return bool(value)
+
+        low_cpu_mode = _read_bool("low_cpu_mode", False)
+        adaptive = _read_bool("adaptive", False)
+
+        if adaptive:
+            min_fps = max(1, _read_int("min_fps", DEFAULT_MIN_FPS))
+            max_fps = max(min_fps, _read_int("max_fps", DEFAULT_MAX_FPS))
+            return min_fps if low_cpu_mode else max_fps
+
+        target_fps = max(1, _read_int("fps", DEFAULT_TARGET_FPS))
+        if low_cpu_mode:
+            target_fps = min(target_fps, LOW_CPU_TARGET_FPS)
+        return target_fps
 
     def update(self) -> None:
         now = time.monotonic()
