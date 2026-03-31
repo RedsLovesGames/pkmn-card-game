@@ -375,6 +375,13 @@ class GraphicsRenderer:
         for move_card in state.move_cards:
             self._register_hitbox(move_card.rect, move_card.event_id, move_card.enabled)
 
+        # Buttons are drawn on the cached static layer, but hitboxes are rebuilt every
+        # frame. Re-register these button hitboxes each frame so they remain clickable
+        # after the first cached render pass.
+        self._register_hitbox(state.switch_button.rect, state.switch_button.event_id, state.switch_button.enabled)
+        self._register_hitbox(state.back_button.rect, state.back_button.event_id, state.back_button.enabled)
+        self._register_hitbox(state.quit_button.rect, state.quit_button.event_id, state.quit_button.enabled)
+
     def draw_switch_overlay(self, state: SwitchOverlayState) -> None:
         self._draw_scrim()
         panel = Rect(305, 210, 390, 300)
