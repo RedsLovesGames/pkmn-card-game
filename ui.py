@@ -363,12 +363,8 @@ class GraphicsRenderer:
         self._active_draw_layer = self._battle_dynamic_items
         self._draw_sprite(state.enemy_sprite, field_origin)
         self._draw_sprite(state.player_sprite, field_origin)
+        self._active_draw_layer = None
 
-        self._draw_top_left_label(26, 426, state.mode_label, (245, 245, 245), size=12)
-        self._draw_panel(Rect(20, 446, 430, 126), fill=(244, 244, 236), border=(50, 50, 50), border_width=3)
-        self._draw_wrapped_top_left_block(36, 464, state.battle_log_text, BATTLE_LOG_WRAP_WIDTH, (24, 24, 24), size=13)
-
-        self._draw_panel(Rect(464, 446, 516, 140), fill=(244, 244, 236), border=(50, 50, 50), border_width=3)
         for move_card in state.move_cards:
             self._register_hitbox(move_card.rect, move_card.event_id, move_card.enabled)
 
