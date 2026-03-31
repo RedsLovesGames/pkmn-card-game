@@ -34,14 +34,16 @@ BATTLE_LOG_WRAP_WIDTH = 396
 RESULT_WRAP_WIDTH = 360
 MOVE_CARD_LAYOUT = {
     "left_col_x": 10,
+    "left_col_width": 116,
     "right_col_x": 132,
     "right_col_width": 96,
     "name_y": 4,
     "power_y": 18,
     "meta_y": 31,
-    "accuracy_y": 4,
-    "effect_y": 22,
-    "effect_max_lines": 2,
+    "pp_y": 4,
+    "accuracy_y": 15,
+    "effect_y": 28,
+    "effect_max_lines": 1,
 }
 
 MeasureTextFn = Callable[[str, int, str], Tuple[int, int]]
@@ -123,6 +125,7 @@ class MoveCardState:
     name_text: str
     power_text: str
     meta_text: str
+    pp_text: str
     accuracy_text: str
     effect_text: str
     move_type: str
@@ -341,17 +344,31 @@ class GraphicsRenderer:
         self._register_hitbox(card.rect, card.event_id, card.enabled)
 
         left_col_x = card.rect.x + MOVE_CARD_LAYOUT["left_col_x"]
+        left_col_width = MOVE_CARD_LAYOUT["left_col_width"]
         right_col_x = card.rect.x + MOVE_CARD_LAYOUT["right_col_x"]
         right_col_width = MOVE_CARD_LAYOUT["right_col_width"]
 
+        name_text = self._truncate_line(card.name_text, left_col_width, size=11, style="bold")
         self._draw_top_left_label(
             left_col_x,
             card.rect.y + MOVE_CARD_LAYOUT["name_y"],
-            card.name_text,
+            name_text,
             text_color,
             size=11,
             style="bold",
         )
+        if card.pp_text:
+            pp_text = self._truncate_line(card.pp_text, right_col_width, size=8, style="bold")
+            pp_width, _ = self._measure_text_size(pp_text, size=8, style="bold")
+            pp_left = right_col_x + max(0, right_col_width - pp_width)
+            self._draw_top_left_label(
+                pp_left,
+                card.rect.y + MOVE_CARD_LAYOUT["pp_y"],
+                pp_text,
+                text_color,
+                size=8,
+                style="bold",
+            )
         if card.accuracy_text:
             accuracy_text = self._truncate_line(card.accuracy_text, right_col_width, size=8, style="bold")
             accuracy_width, _ = self._measure_text_size(accuracy_text, size=8, style="bold")
@@ -364,8 +381,20 @@ class GraphicsRenderer:
                 size=8,
                 style="bold",
             )
-        self._draw_top_left_label(left_col_x, card.rect.y + MOVE_CARD_LAYOUT["power_y"], card.power_text, text_color, size=9)
-        self._draw_top_left_label(left_col_x, card.rect.y + MOVE_CARD_LAYOUT["meta_y"], card.meta_text, text_color, size=9)
+        self._draw_top_left_label(
+            left_col_x,
+            card.rect.y + MOVE_CARD_LAYOUT["power_y"],
+            self._truncate_line(card.power_text, left_col_width, size=9, style="normal"),
+            text_color,
+            size=9,
+        )
+        self._draw_top_left_label(
+            left_col_x,
+            card.rect.y + MOVE_CARD_LAYOUT["meta_y"],
+            self._truncate_line(card.meta_text, left_col_width, size=9, style="normal"),
+            text_color,
+            size=9,
+        )
         self._draw_wrapped_top_left_block(
             right_col_x,
             card.rect.y + MOVE_CARD_LAYOUT["effect_y"],
