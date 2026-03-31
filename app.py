@@ -3,6 +3,7 @@ from __future__ import annotations
 import heapq
 import random
 import time
+from dataclasses import dataclass
 from typing import Callable, List, Optional, Tuple
 
 from data import CONFIG
@@ -61,6 +62,20 @@ TimelineEvent = Tuple[float, int, Callable[[], None]]
 ActionCallback = Callable[[str], None]
 
 
+@dataclass
+class AnimationState:
+    kind: str
+    target: str
+    frame: int
+    total_frames: int
+    start_pos: tuple[int, int]
+    end_pos: tuple[int, int]
+    visible: bool
+    scale: float
+    alpha_level: float
+    message: str
+
+
 class BattleApp:
     """Main battle controller backed by a graphics.py renderer."""
 
@@ -103,6 +118,13 @@ class BattleApp:
         self.result_subtext = ""
         self.result_color = (24, 24, 24)
         self._last_update_time = time.monotonic()
+        self._animations: List[AnimationState] = []
+        self.player_sprite_visible = True
+        self.enemy_sprite_visible = True
+        self.player_sprite_scale = 1.0
+        self.enemy_sprite_scale = 1.0
+        self.status_popup_text = ""
+        self.status_popup_target = ""
         self._reset_battle_runtime()
 
     def setup(self) -> None:
@@ -266,6 +288,78 @@ class BattleApp:
         self._animate_sprite(self.player_sprite_pos, self.player_sprite_target, self.player_sprite_velocity, delta_time)
         self._animate_sprite(self.enemy_sprite_pos, self.enemy_sprite_target, self.enemy_sprite_velocity, delta_time)
         self._animate_hp()
+        self._apply_animation_states()
+
+    def _apply_animation_states(self) -> None:
+        self.player_sprite_visible = True
+        self.enemy_sprite_visible = True
+        self.player_sprite_scale = 1.0
+        self.enemy_sprite_scale = 1.0
+        self.status_popup_text = ""
+        self.status_popup_target = ""
+        still_active: List[AnimationState] = []
+
+        for animation in self._animations:
+            progress = min(1.0, animation.frame / max(1, animation.total_frames))
+            current_x = animation.start_pos[0] + (animation.end_pos[0] - animation.start_pos[0]) * progress
+            current_y = animation.start_pos[1] + (animation.end_pos[1] - animation.start_pos[1]) * progress
+
+            if animation.target == PLAYER_SIDE:
+                self.player_sprite_pos[0] = current_x
+                self.player_sprite_pos[1] = current_y
+            else:
+                self.enemy_sprite_pos[0] = current_x
+                self.enemy_sprite_pos[1] = current_y
+
+            if animation.kind in {"damage_flash", "faint", "status_flash"}:
+                animation.visible = animation.frame % 2 == 1
+            if animation.target == PLAYER_SIDE:
+                self.player_sprite_visible = animation.visible
+                self.player_sprite_scale = animation.scale
+            else:
+                self.enemy_sprite_visible = animation.visible
+                self.enemy_sprite_scale = animation.scale
+
+            if animation.message:
+                self.status_popup_text = animation.message
+                self.status_popup_target = animation.target
+
+            if animation.kind == "faint":
+                shrink = 1.0 - 0.6 * progress
+                if animation.target == PLAYER_SIDE:
+                    self.player_sprite_scale = max(0.1, shrink)
+                else:
+                    self.enemy_sprite_scale = max(0.1, shrink)
+
+            animation.frame += 1
+            if animation.frame <= animation.total_frames:
+                still_active.append(animation)
+
+        self._animations = still_active
+
+    def _start_animation(
+        self,
+        kind: str,
+        target: str,
+        total_frames: int,
+        start_pos: tuple[int, int],
+        end_pos: tuple[int, int],
+        message: str = "",
+    ) -> None:
+        self._animations.append(
+            AnimationState(
+                kind=kind,
+                target=target,
+                frame=0,
+                total_frames=total_frames,
+                start_pos=start_pos,
+                end_pos=end_pos,
+                visible=True,
+                scale=1.0,
+                alpha_level=1.0,
+                message=message,
+            )
+        )
 
     def _animate_sprite(self, current: List[float], target: List[float], velocity: List[float], delta_time: float) -> None:
         if self.low_cpu_mode:
@@ -348,6 +442,13 @@ class BattleApp:
         self.mode_label = ""
         self.battle_log_text = ""
         self._hide_overlays()
+        self._animations = []
+        self.player_sprite_visible = True
+        self.enemy_sprite_visible = True
+        self.player_sprite_scale = 1.0
+        self.enemy_sprite_scale = 1.0
+        self.status_popup_text = ""
+        self.status_popup_target = ""
         self._reset_result_state()
         self._clear_timeline()
 
@@ -453,6 +554,7 @@ class BattleApp:
 
         status_text = _check_status_effects(action.user, action.side)
         if status_text:
+            self._play_status_popup(action.side, status_text.splitlines()[0].upper()[:16])
             self._set_log(status_text)
             if self._status_blocks_action(status_text):
                 self.queue_call(PAUSE["message"], lambda: callback(OUTCOME_CONTINUE))
@@ -467,6 +569,10 @@ class BattleApp:
                 self._set_log(f"{action.actor_name} used\n{move.name.upper()}!\nBut it missed!")
                 self.queue_call(PAUSE["attack"], lambda: callback(OUTCOME_CONTINUE))
                 return
+
+            target_side = PLAYER_SIDE if action.side == ENEMY_SIDE else ENEMY_SIDE
+            target_pos = tuple(map(int, self.player_sprite_pos if target_side == PLAYER_SIDE else self.enemy_sprite_pos))
+            self._start_animation("damage_flash", target_side, 8, target_pos, target_pos)
 
             action.target.apply_damage(damage)
             if move.recharge and action.target.alive and BATTLE_CONFIG["hyper_beam_recharge_if_target_survives"]:
@@ -504,6 +610,9 @@ class BattleApp:
             can_flinch_target=action.can_flinch_target,
         )
         if secondary_text:
+            if any(token in secondary_text.lower() for token in ("burn", "paraly", "freeze", "confus", "poison", "sleep")):
+                affected_side = PLAYER_SIDE if action.target in self.player_team else ENEMY_SIDE
+                self._play_status_popup(affected_side, secondary_text.splitlines()[0].upper()[:16])
             extra_messages.append(secondary_text)
 
         def after_messages() -> None:
@@ -556,6 +665,10 @@ class BattleApp:
 
     def _handle_faint(self, fainted: Pokemon, callback: ActionCallback) -> None:
         self._set_log(f"{fainted.name.upper()}\nfainted!")
+        faint_side = ENEMY_SIDE if fainted in self.enemy_team else PLAYER_SIDE
+        faint_pos = tuple(map(int, self.enemy_sprite_pos if faint_side == ENEMY_SIDE else self.player_sprite_pos))
+        faint_end = (faint_pos[0], faint_pos[1] + 40)
+        self._start_animation("faint", faint_side, 16, faint_pos, faint_end, message="FAINTED!")
         if fainted in self.enemy_team:
             self._handle_enemy_faint(callback)
         else:
@@ -571,6 +684,13 @@ class BattleApp:
 
             self._set_active_enemy(next_enemy_idx)
             self._set_log(f"Enemy sent out\n{self.enemy_team[self.e_idx].name.upper()}!")
+            self._start_animation(
+                "switch_in",
+                ENEMY_SIDE,
+                12,
+                (int(LAYOUT["enemy_sprite_start"][0] + 240), int(LAYOUT["enemy_sprite_start"][1] - 24)),
+                (int(LAYOUT["enemy_sprite_target"][0]), int(LAYOUT["enemy_sprite_target"][1])),
+            )
             self.queue_call(PAUSE["sendout"], lambda: callback(OUTCOME_TURN_END))
 
         self.queue_call(PAUSE["faint"], after_enemy_faint)
@@ -602,14 +722,47 @@ class BattleApp:
             return
 
         was_forced = self.force_switch
+        old_index = self.p_idx
+        old_name = self.player_team[old_index].name.upper()
+        new_name = self.player_team[new_index].name.upper()
         self.force_switch = False
         self.switch_modal_visible = False
-        self._set_active_player(new_index)
-        self._set_log(f"Go! {self.player_team[self.p_idx].name.upper()}!")
         if was_forced:
+            self._set_active_player(new_index)
+            self._set_log(f"Go! {new_name}!")
+            self._start_animation(
+                "switch_in",
+                PLAYER_SIDE,
+                12,
+                (int(LAYOUT["player_sprite_start"][0] - 240), int(LAYOUT["player_sprite_start"][1] + 24)),
+                (int(LAYOUT["player_sprite_target"][0]), int(LAYOUT["player_sprite_target"][1])),
+            )
             self.busy = False
-        else:
-            self._handle_enemy_action_after_switch()
+            return
+
+        self.busy = True
+        self._set_log(f"{old_name}, come back!")
+        self._start_animation(
+            "switch_out",
+            PLAYER_SIDE,
+            12,
+            (int(self.player_sprite_pos[0]), int(self.player_sprite_pos[1])),
+            (int(self.player_sprite_pos[0] - 180), int(self.player_sprite_pos[1] + 36)),
+        )
+
+        def send_new_pokemon() -> None:
+            self._set_active_player(new_index)
+            self._set_log(f"Go! {new_name}!")
+            self._start_animation(
+                "switch_in",
+                PLAYER_SIDE,
+                12,
+                (int(LAYOUT["player_sprite_start"][0] - 240), int(LAYOUT["player_sprite_start"][1] + 24)),
+                (int(LAYOUT["player_sprite_target"][0]), int(LAYOUT["player_sprite_target"][1])),
+            )
+            self.queue_call(PAUSE["switch"], self._handle_enemy_action_after_switch)
+
+        self.queue_call(PAUSE["switch"], send_new_pokemon)
 
     def _handle_enemy_action_after_switch(self) -> None:
         self.busy = True
@@ -672,8 +825,24 @@ class BattleApp:
             battle_log_text=self.battle_log_text,
             enemy_hud=PokemonHudState(enemy.name, enemy.type, enemy.status, enemy.current_hp, enemy.max_hp, self.enemy_hp_display),
             player_hud=PokemonHudState(player.name, player.type, player.status, player.current_hp, player.max_hp, self.player_hp_display),
-            enemy_sprite=SpriteState(enemy.name, False, tuple(LAYOUT["enemy_sprite"]), (int(self.enemy_sprite_pos[0]), int(self.enemy_sprite_pos[1]))),
-            player_sprite=SpriteState(player.name, True, tuple(LAYOUT["player_sprite"]), (int(self.player_sprite_pos[0]), int(self.player_sprite_pos[1]))),
+            enemy_sprite=SpriteState(
+                enemy.name,
+                False,
+                tuple(LAYOUT["enemy_sprite"]),
+                (int(self.enemy_sprite_pos[0]), int(self.enemy_sprite_pos[1])),
+                visible=self.enemy_sprite_visible,
+                scale=self.enemy_sprite_scale,
+            ),
+            player_sprite=SpriteState(
+                player.name,
+                True,
+                tuple(LAYOUT["player_sprite"]),
+                (int(self.player_sprite_pos[0]), int(self.player_sprite_pos[1])),
+                visible=self.player_sprite_visible,
+                scale=self.player_sprite_scale,
+            ),
+            status_popup_text=self.status_popup_text,
+            status_popup_target=self.status_popup_target,
             move_cards=self._build_move_cards(player, can_choose_move),
             switch_button=ButtonState(
                 "Switch Pokemon",
@@ -689,6 +858,10 @@ class BattleApp:
             ),
             quit_button=ButtonState("Quit", Rect(428, 590, 120, 42), "quit"),
         )
+
+    def _play_status_popup(self, side: str, message: str) -> None:
+        pos = tuple(map(int, self.player_sprite_pos if side == PLAYER_SIDE else self.enemy_sprite_pos))
+        self._start_animation("status_flash", side, 12, pos, pos, message=message)
 
     def _build_move_cards(self, player: Pokemon, enabled: bool) -> List[MoveCardState]:
         move_cards: List[MoveCardState] = []

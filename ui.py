@@ -149,6 +149,8 @@ class SpriteState:
     is_back: bool
     size: Tuple[int, int]
     pos: Tuple[int, int]
+    visible: bool = True
+    scale: float = 1.0
 
 
 @dataclass
@@ -176,6 +178,8 @@ class BattleScreenState:
     player_hud: PokemonHudState
     enemy_sprite: SpriteState
     player_sprite: SpriteState
+    status_popup_text: str
+    status_popup_target: str
     move_cards: List[MoveCardState]
     switch_button: ButtonState
     back_button: ButtonState
@@ -370,6 +374,11 @@ class GraphicsRenderer:
         self._active_draw_layer = self._battle_dynamic_items
         self._draw_sprite(state.enemy_sprite, field_origin)
         self._draw_sprite(state.player_sprite, field_origin)
+        if state.status_popup_text:
+            popup_x = 180 if state.status_popup_target == "enemy" else 640
+            popup_y = 120 if state.status_popup_target == "enemy" else 312
+            self._draw_panel(Rect(popup_x, popup_y, 180, 36), fill=(255, 247, 180), border=(90, 90, 90), border_width=2)
+            self._draw_center_label(popup_x + 90, popup_y + 18, state.status_popup_text, (44, 44, 44), size=11, style="bold")
         self._active_draw_layer = None
 
         for move_card in state.move_cards:
@@ -529,19 +538,23 @@ class GraphicsRenderer:
             self._draw_object(oval)
 
     def _draw_sprite(self, sprite: SpriteState, field_origin: Tuple[int, int]) -> None:
+        if not sprite.visible:
+            return
+        scaled_w = max(1, int(sprite.size[0] * max(0.1, sprite.scale)))
+        scaled_h = max(1, int(sprite.size[1] * max(0.1, sprite.scale)))
         sprite_path = self.load_sprite(sprite.name, sprite.is_back, sprite.size)
-        draw_left = field_origin[0] + sprite.pos[0]
-        draw_top = field_origin[1] + sprite.pos[1]
-        anchor_x = draw_left + sprite.size[0] // 2
-        anchor_y = draw_top + sprite.size[1] // 2
+        draw_left = field_origin[0] + sprite.pos[0] + (sprite.size[0] - scaled_w) // 2
+        draw_top = field_origin[1] + sprite.pos[1] + (sprite.size[1] - scaled_h) // 2
+        anchor_x = draw_left + scaled_w // 2
+        anchor_y = draw_top + scaled_h // 2
         if sprite_path:
             image_width, image_height = self._get_image_size(sprite_path)
             scale = 1
             if image_width > 0 and image_height > 0:
-                scale = int(max(1, min(sprite.size[0] // image_width, sprite.size[1] // image_height)))
+                scale = int(max(1, min(scaled_w // image_width, scaled_h // image_height)))
             self._draw_image(anchor_x, anchor_y, sprite_path, scale=scale)
         else:
-            self._draw_panel(Rect(draw_left, draw_top, sprite.size[0], sprite.size[1]), fill=(245, 245, 245), border=(40, 40, 40), border_width=3)
+            self._draw_panel(Rect(draw_left, draw_top, scaled_w, scaled_h), fill=(245, 245, 245), border=(40, 40, 40), border_width=3)
             self._draw_center_label(anchor_x, anchor_y, sprite.name.upper()[:10], (30, 30, 30), size=10, style="bold")
 
     def _draw_button(self, button: ButtonState) -> None:
