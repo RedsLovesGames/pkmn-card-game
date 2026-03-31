@@ -27,7 +27,7 @@ def calculate_damage(attacker: Pokemon, defender: Pokemon, move: Move) -> Tuple[
     2. Whether the hit was a critical hit
     3. The type effectiveness multiplier
     """
-    if move.fixed:
+    if getattr(move, "is_struggle", False) or move.fixed:
         return move.power, False, 1.0
 
     attack = attacker.att if move.category == "Physical" else attacker.spc
