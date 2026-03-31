@@ -318,6 +318,13 @@ class GraphicsRenderer:
         self.hud_dirty = hud_slice != self._last_hud_slice
         self.move_cards_dirty = move_cards_slice != self._last_move_cards_slice
         self.log_dirty = log_slice != self._last_log_slice
+
+        if self.field_static_dirty:
+            # Static battle field elements are the background for HUD/log/move panels.
+            # When they redraw, dependent layers must redraw above them in the same frame.
+            self.hud_dirty = True
+            self.move_cards_dirty = True
+            self.log_dirty = True
         self._last_field_static_slice = static_slice
         self._last_hud_slice = hud_slice
         self._last_move_cards_slice = move_cards_slice
@@ -330,7 +337,7 @@ class GraphicsRenderer:
             self._draw_field_panel(field_origin)
             self._draw_standing_spots(field_origin)
             self._draw_panel(Rect(20, 446, 430, 126), fill=(244, 244, 236), border=(50, 50, 50), border_width=3)
-            self._draw_panel(Rect(464, 446, 516, 126), fill=(244, 244, 236), border=(50, 50, 50), border_width=3)
+            self._draw_panel(Rect(464, 446, 516, 140), fill=(244, 244, 236), border=(50, 50, 50), border_width=3)
             self._draw_button(state.switch_button)
             self._draw_button(state.back_button)
             self._draw_button(state.quit_button)
