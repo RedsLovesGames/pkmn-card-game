@@ -219,6 +219,9 @@ class GraphicsRenderer:
         self.log_dirty = True
         self._sprite_cache: Dict[Tuple[str, bool, Tuple[int, int]], Optional[str]] = {}
         self._image_size_cache: Dict[str, Tuple[int, int]] = {}
+        self._text_size_cache: Dict[Tuple[str, int, str], Tuple[int, int]] = {}
+        self._truncate_cache: Dict[Tuple[str, int, int, str], str] = {}
+        self._wrap_cache: Dict[Tuple[str, int, int, str, Optional[int]], List[str]] = {}
 
     def create_window(self) -> None:
         self.win = GraphWin("Pokemon Battle", WINDOW_WIDTH, WINDOW_HEIGHT, autoflush=False)
@@ -659,6 +662,11 @@ class GraphicsRenderer:
         self.move_cards_dirty = True
         self.log_dirty = True
 
+    def clear_text_layout_caches(self) -> None:
+        self._text_size_cache.clear()
+        self._truncate_cache.clear()
+        self._wrap_cache.clear()
+
     def _wrap_text_lines(
         self,
         value: str,
@@ -667,14 +675,19 @@ class GraphicsRenderer:
         style: str = "normal",
         max_lines: Optional[int] = None,
     ) -> List[str]:
-        max_width = max(1, int(max_width))
+        normalized_max_width = max(1, int(max_width))
+        cache_key = (value, normalized_max_width, int(size), style, max_lines)
+        cached_lines = self._wrap_cache.get(cache_key)
+        if cached_lines is not None:
+            return cached_lines.copy()
+
         lines: List[str] = []
         truncated = False
         for paragraph in value.splitlines() or [""]:
             if not paragraph:
                 lines.append("")
                 continue
-            wrapped = self._wrap_paragraph_to_width(paragraph, max_width, size, style)
+            wrapped = self._wrap_paragraph_to_width(paragraph, normalized_max_width, size, style)
             for line in wrapped or [""]:
                 if max_lines is not None and len(lines) >= max_lines:
                     truncated = True
@@ -683,7 +696,8 @@ class GraphicsRenderer:
             if truncated:
                 break
         if truncated and lines:
-            lines[-1] = self._truncate_line(lines[-1], max_width, size, style)
+            lines[-1] = self._truncate_line(lines[-1], normalized_max_width, size, style)
+        self._wrap_cache[cache_key] = lines.copy()
         return lines
 
     def _wrap_paragraph_to_width(self, paragraph: str, max_width: int, size: int, style: str) -> List[str]:
@@ -735,20 +749,36 @@ class GraphicsRenderer:
         return parts or [word]
 
     def _truncate_line(self, line: str, max_width: int, size: int, style: str) -> str:
+        normalized_max_width = max(1, int(max_width))
+        cache_key = (line, normalized_max_width, int(size), style)
+        cached_line = self._truncate_cache.get(cache_key)
+        if cached_line is not None:
+            return cached_line
+
         ellipsis = "..."
         text = line.rstrip()
-        while text and self._measure_text_size(text + ellipsis, size, style)[0] > max_width:
+        while text and self._measure_text_size(text + ellipsis, size, style)[0] > normalized_max_width:
             text = text[:-1].rstrip()
-        return (text + ellipsis) if text else ellipsis
+        truncated = (text + ellipsis) if text else ellipsis
+        self._truncate_cache[cache_key] = truncated
+        return truncated
 
     def _measure_text_size(self, value: str, size: int, style: str) -> Tuple[int, int]:
+        cache_key = (value, int(size), style)
+        cached_size = self._text_size_cache.get(cache_key)
+        if cached_size is not None:
+            return cached_size
+
         try:
-            return _graphics_measure_text(value, size=size, style=style)
+            measured = _graphics_measure_text(value, size=size, style=style)
         except Exception:
             if not value:
-                return (0, self._line_height(size))
-            factor = 0.60 if "bold" in style else 0.56
-            return (int(round(len(value) * size * factor)), self._line_height(size))
+                measured = (0, self._line_height(size))
+            else:
+                factor = 0.60 if "bold" in style else 0.56
+                measured = (int(round(len(value) * size * factor)), self._line_height(size))
+        self._text_size_cache[cache_key] = measured
+        return measured
 
     def _line_height(self, size: int) -> int:
         try:
