@@ -1,0 +1,253 @@
+{
+  "Seismic Toss": {
+    "type": "fighting",
+    "power": 100,
+    "category": "Physical",
+    "fixed": true,
+    "recharge": false,
+    "accuracy": 100
+  },
+  "Psychic": {
+    "type": "psychic",
+    "power": 90,
+    "category": "Special",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100,
+    "secondary": {
+      "chance": 0.1,
+      "effect": "lower_special",
+      "stages": 1,
+      "description": "10% chance to lower Special"
+    }
+  },
+  "Psybeam": {
+    "type": "psychic",
+    "power": 65,
+    "category": "Special",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100,
+    "secondary": {
+      "chance": 0.1,
+      "effect": "confuse",
+      "description": "10% chance to confuse"
+    }
+  },
+  "Hyper Beam": {
+    "type": "normal",
+    "power": 150,
+    "category": "Special",
+    "fixed": false,
+    "recharge": true,
+    "accuracy": 90
+  },
+  "Ice Beam": {
+    "type": "ice",
+    "power": 90,
+    "category": "Special",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100,
+    "secondary": {
+      "chance": 0.1,
+      "effect": "freeze",
+      "description": "10% chance to freeze"
+    }
+  },
+  "Thunderbolt": {
+    "type": "electric",
+    "power": 90,
+    "category": "Special",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100,
+    "secondary": {
+      "chance": 0.1,
+      "effect": "paralyze",
+      "description": "10% chance to paralyze"
+    }
+  },
+  "Surf": {
+    "type": "water",
+    "power": 90,
+    "category": "Special",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100
+  },
+  "Blizzard": {
+    "type": "ice",
+    "power": 110,
+    "category": "Special",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 70,
+    "secondary": {
+      "chance": 0.1,
+      "effect": "freeze",
+      "description": "10% chance to freeze"
+    }
+  },
+  "Thunder": {
+    "type": "electric",
+    "power": 110,
+    "category": "Special",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 70,
+    "secondary": {
+      "chance": 0.3,
+      "effect": "paralyze",
+      "description": "30% chance to paralyze"
+    }
+  },
+  "Earthquake": {
+    "type": "ground",
+    "power": 100,
+    "category": "Physical",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100
+  },
+  "Rock Slide": {
+    "type": "rock",
+    "power": 75,
+    "category": "Physical",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 90,
+    "secondary": {
+      "chance": 0.3,
+      "effect": "flinch",
+      "description": "30% chance to flinch"
+    }
+  },
+  "Dig": {
+    "type": "ground",
+    "power": 80,
+    "category": "Physical",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100
+  },
+  "Slash": {
+    "type": "normal",
+    "power": 70,
+    "category": "Physical",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100
+  },
+  "Mega Drain": {
+    "type": "grass",
+    "power": 40,
+    "category": "Special",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100,
+    "secondary": {
+      "chance": 1.0,
+      "effect": "drain",
+      "drain": 0.5,
+      "description": "Heals user for 50% damage dealt"
+    }
+  },
+  "Explosion": {
+    "type": "normal",
+    "power": 250,
+    "category": "Physical",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100
+  },
+  "Hydro Pump": {
+    "type": "water",
+    "power": 110,
+    "category": "Special",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 80
+  },
+  "Swift": {
+    "type": "normal",
+    "power": 60,
+    "category": "Special",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100,
+    "always_hits": true
+  },
+  "Tri Attack": {
+    "type": "normal",
+    "power": 80,
+    "category": "Special",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100,
+    "secondary": {
+      "chance": 0.2,
+      "effect": "status",
+      "description": "20% chance to burn/paralyze/freeze"
+    }
+  },
+  "Wing Attack": {
+    "type": "flying",
+    "power": 60,
+    "category": "Physical",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100
+  },
+  "Leech Life": {
+    "type": "bug",
+    "power": 80,
+    "category": "Physical",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100,
+    "secondary": {
+      "chance": 1.0,
+      "effect": "drain",
+      "drain": 0.5,
+      "description": "Heals user for 50% damage dealt"
+    }
+  },
+  "Body Slam": {
+    "type": "normal",
+    "power": 85,
+    "category": "Physical",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100,
+    "secondary": {
+      "chance": 0.3,
+      "effect": "paralyze",
+      "description": "30% chance to paralyze"
+    }
+  },
+  "Solar Beam": {
+    "type": "grass",
+    "power": 120,
+    "category": "Special",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100
+  },
+  "Razor Leaf": {
+    "type": "grass",
+    "power": 55,
+    "category": "Physical",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 95
+  },
+  "Drill Peck": {
+    "type": "flying",
+    "power": 80,
+    "category": "Physical",
+    "fixed": false,
+    "recharge": false,
+    "accuracy": 100
+  }
+}

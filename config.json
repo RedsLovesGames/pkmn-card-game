@@ -1,0 +1,29 @@
+{
+  "battle": {
+    "team_size": 3,
+    "level": 50,
+    "crit_chance": 0.0625,
+    "crit_multiplier": 2.0,
+    "stab_multiplier": 1.5,
+    "random_min": 0.85,
+    "random_max": 1.0,
+    "hyper_beam_recharge_if_target_survives": true,
+    "pause": {
+      "attack": 0.52,
+      "message": 0.6,
+      "faint": 0.85,
+      "sendout": 0.8,
+      "switch": 0.55
+    }
+  },
+  "layout": {
+    "card_sprite": [84, 84],
+    "enemy_sprite": [236, 236],
+    "player_sprite": [212, 212],
+    "enemy_sprite_start": [1010, 82],
+    "enemy_sprite_target": [654, 82],
+    "player_sprite_start": [-232, 228],
+    "player_sprite_target": [96, 228],
+    "field_size": [960, 392]
+  }
+}
