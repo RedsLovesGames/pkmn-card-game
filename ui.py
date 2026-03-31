@@ -201,7 +201,22 @@ class GraphicsRenderer:
     def __init__(self) -> None:
         self.win: Optional[GraphWin] = None
         self._hitboxes: List[Tuple[Rect, str, bool]] = []
-        self._drawn_items: List[Drawable] = []
+        self._frame_items: List[Drawable] = []
+        self._battle_static_items: List[Drawable] = []
+        self._battle_hud_items: List[Drawable] = []
+        self._battle_move_items: List[Drawable] = []
+        self._battle_log_items: List[Drawable] = []
+        self._battle_dynamic_items: List[Drawable] = []
+        self._active_draw_layer: Optional[List[Drawable]] = None
+        self._in_battle_frame = False
+        self._last_field_static_slice: Optional[Tuple[object, ...]] = None
+        self._last_hud_slice: Optional[Tuple[PokemonHudState, PokemonHudState]] = None
+        self._last_move_cards_slice: Optional[Tuple[MoveCardState, ...]] = None
+        self._last_log_slice: Optional[Tuple[str, str]] = None
+        self.field_static_dirty = True
+        self.hud_dirty = True
+        self.move_cards_dirty = True
+        self.log_dirty = True
         self._sprite_cache: Dict[Tuple[str, bool, Tuple[int, int]], Optional[str]] = {}
         self._image_size_cache: Dict[str, Tuple[int, int]] = {}
 
@@ -224,9 +239,12 @@ class GraphicsRenderer:
     def begin_frame(self) -> None:
         if not self.win:
             return
-        for item in reversed(self._drawn_items):
-            item.undraw()
-        self._drawn_items = []
+        self._undraw_items(self._frame_items)
+        self._frame_items = []
+        if self._in_battle_frame:
+            self._undraw_items(self._battle_dynamic_items)
+            self._battle_dynamic_items = []
+        self._active_draw_layer = None
         self._hitboxes = []
 
     def end_frame(self) -> None:
@@ -269,6 +287,7 @@ class GraphicsRenderer:
         return size
 
     def draw_selection_screen(self, state: SelectionScreenState) -> None:
+        self._reset_battle_layers()
         self._draw_top_left_label(36, 28, state.title, (245, 245, 245), size=22, style="bold")
         self._draw_top_left_label(36, 56, state.summary, (245, 245, 245), size=12)
         self._draw_line(36, 82, WINDOW_WIDTH - 36, 82, (220, 220, 220), 2)
@@ -280,11 +299,65 @@ class GraphicsRenderer:
         self._draw_button(state.clear_button)
 
     def draw_battle_screen(self, state: BattleScreenState) -> None:
+        self._in_battle_frame = True
         field_origin = (20, 20)
-        self._draw_field_panel(field_origin)
-        self._draw_standing_spots(field_origin)
-        self._draw_hud(state.enemy_hud, field_origin[0] + 42, field_origin[1] + 34, 342, "FOE", (196, 72, 86))
-        self._draw_hud(state.player_hud, field_origin[0] + 536, field_origin[1] + 286, 382, "YOU", (68, 132, 212))
+        static_slice = (
+            field_origin,
+            tuple(card.rect for card in state.move_cards),
+            state.switch_button,
+            state.back_button,
+            state.quit_button,
+        )
+        hud_slice = (state.enemy_hud, state.player_hud)
+        move_cards_slice = tuple(state.move_cards)
+        log_slice = (state.mode_label, state.battle_log_text)
+        self.field_static_dirty = static_slice != self._last_field_static_slice
+        self.hud_dirty = hud_slice != self._last_hud_slice
+        self.move_cards_dirty = move_cards_slice != self._last_move_cards_slice
+        self.log_dirty = log_slice != self._last_log_slice
+        self._last_field_static_slice = static_slice
+        self._last_hud_slice = hud_slice
+        self._last_move_cards_slice = move_cards_slice
+        self._last_log_slice = log_slice
+
+        if self.field_static_dirty:
+            self._undraw_items(self._battle_static_items)
+            self._battle_static_items = []
+            self._active_draw_layer = self._battle_static_items
+            self._draw_field_panel(field_origin)
+            self._draw_standing_spots(field_origin)
+            self._draw_panel(Rect(20, 446, 430, 126), fill=(244, 244, 236), border=(50, 50, 50), border_width=3)
+            self._draw_panel(Rect(464, 446, 516, 126), fill=(244, 244, 236), border=(50, 50, 50), border_width=3)
+            self._draw_button(state.switch_button)
+            self._draw_button(state.back_button)
+            self._draw_button(state.quit_button)
+            self._active_draw_layer = None
+
+        if self.hud_dirty:
+            self._undraw_items(self._battle_hud_items)
+            self._battle_hud_items = []
+            self._active_draw_layer = self._battle_hud_items
+            self._draw_hud(state.enemy_hud, field_origin[0] + 42, field_origin[1] + 34, 342, "FOE", (196, 72, 86))
+            self._draw_hud(state.player_hud, field_origin[0] + 536, field_origin[1] + 286, 382, "YOU", (68, 132, 212))
+            self._active_draw_layer = None
+
+        if self.log_dirty:
+            self._undraw_items(self._battle_log_items)
+            self._battle_log_items = []
+            self._active_draw_layer = self._battle_log_items
+            self._draw_top_left_label(26, 426, state.mode_label, (245, 245, 245), size=12)
+            self._draw_wrapped_top_left_block(36, 464, state.battle_log_text, BATTLE_LOG_WRAP_WIDTH, (24, 24, 24), size=13)
+            self._active_draw_layer = None
+
+        if self.move_cards_dirty:
+            self._undraw_items(self._battle_move_items)
+            self._battle_move_items = []
+            self._active_draw_layer = self._battle_move_items
+            for move_card in state.move_cards:
+                self._draw_move_card(move_card)
+            self._active_draw_layer = None
+
+        self._active_draw_layer = self._battle_dynamic_items
         self._draw_sprite(state.enemy_sprite, field_origin)
         self._draw_sprite(state.player_sprite, field_origin)
 
@@ -294,11 +367,7 @@ class GraphicsRenderer:
 
         self._draw_panel(Rect(464, 446, 516, 140), fill=(244, 244, 236), border=(50, 50, 50), border_width=3)
         for move_card in state.move_cards:
-            self._draw_move_card(move_card)
-
-        self._draw_button(state.switch_button)
-        self._draw_button(state.back_button)
-        self._draw_button(state.quit_button)
+            self._register_hitbox(move_card.rect, move_card.event_id, move_card.enabled)
 
     def draw_switch_overlay(self, state: SwitchOverlayState) -> None:
         self._draw_scrim()
@@ -561,7 +630,34 @@ class GraphicsRenderer:
 
     def _draw_object(self, item: Drawable) -> None:
         item.draw(self._get_win())
-        self._drawn_items.append(item)
+        if self._active_draw_layer is not None:
+            self._active_draw_layer.append(item)
+        else:
+            self._frame_items.append(item)
+
+    def _undraw_items(self, items: List[Drawable]) -> None:
+        for item in reversed(items):
+            item.undraw()
+
+    def _reset_battle_layers(self) -> None:
+        self._in_battle_frame = False
+        for layer in (
+            self._battle_dynamic_items,
+            self._battle_move_items,
+            self._battle_log_items,
+            self._battle_hud_items,
+            self._battle_static_items,
+        ):
+            self._undraw_items(layer)
+            layer.clear()
+        self._last_field_static_slice = None
+        self._last_hud_slice = None
+        self._last_move_cards_slice = None
+        self._last_log_slice = None
+        self.field_static_dirty = True
+        self.hud_dirty = True
+        self.move_cards_dirty = True
+        self.log_dirty = True
 
     def _wrap_text_lines(
         self,
