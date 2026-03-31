@@ -47,6 +47,7 @@ LAYOUT = CONFIG["layout"]
 PAUSE = BATTLE_CONFIG["pause"]
 RUNTIME_CONFIG = CONFIG.get("runtime", {})
 DEFAULT_TARGET_FPS = 60
+MIN_TARGET_FPS = 60
 
 TimelineEvent = Tuple[float, int, Callable[[], None]]
 ActionCallback = Callable[[str], None]
@@ -110,7 +111,7 @@ class BattleApp:
             target_fps = int(raw_target_fps)
         except (TypeError, ValueError):
             target_fps = DEFAULT_TARGET_FPS
-        return max(1, target_fps)
+        return max(MIN_TARGET_FPS, target_fps)
 
     def update(self) -> None:
         now = time.monotonic()
