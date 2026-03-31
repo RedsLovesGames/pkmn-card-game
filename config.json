@@ -17,13 +17,40 @@
     }
   },
   "layout": {
-    "card_sprite": [84, 84],
-    "enemy_sprite": [236, 236],
-    "player_sprite": [212, 212],
-    "enemy_sprite_start": [1010, 82],
-    "enemy_sprite_target": [654, 82],
-    "player_sprite_start": [-232, 228],
-    "player_sprite_target": [96, 228],
-    "field_size": [960, 392]
+    "card_sprite": [
+      84,
+      84
+    ],
+    "enemy_sprite": [
+      236,
+      236
+    ],
+    "player_sprite": [
+      212,
+      212
+    ],
+    "enemy_sprite_start": [
+      1010,
+      82
+    ],
+    "enemy_sprite_target": [
+      654,
+      82
+    ],
+    "player_sprite_start": [
+      -232,
+      228
+    ],
+    "player_sprite_target": [
+      96,
+      228
+    ],
+    "field_size": [
+      960,
+      392
+    ]
+  },
+  "runtime": {
+    "fps": 24
   }
 }
