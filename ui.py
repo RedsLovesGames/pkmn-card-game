@@ -30,9 +30,19 @@ class Drawable(Protocol):
 BUTTON_TEXT_NUDGE = 0.0
 CENTER_TEXT_NUDGE = 0.0
 TOP_LEFT_TEXT_NUDGE = 0.0
-MOVE_EFFECT_WRAP_WIDTH = 96
 BATTLE_LOG_WRAP_WIDTH = 396
 RESULT_WRAP_WIDTH = 360
+MOVE_CARD_LAYOUT = {
+    "left_col_x": 10,
+    "right_col_x": 132,
+    "right_col_width": 96,
+    "name_y": 4,
+    "power_y": 18,
+    "meta_y": 31,
+    "accuracy_y": 4,
+    "effect_y": 22,
+    "effect_max_lines": 2,
+}
 
 MeasureTextFn = Callable[[str, int, str], Tuple[int, int]]
 
@@ -329,12 +339,42 @@ class GraphicsRenderer:
         text_color = (255, 255, 255) if sum(base_fill) < 380 else (24, 24, 24)
         self._draw_panel(card.rect, fill=fill, border=(50, 50, 50), border_width=2)
         self._register_hitbox(card.rect, card.event_id, card.enabled)
-        self._draw_top_left_label(card.rect.x + 10, card.rect.y + 4, card.name_text, text_color, size=11, style="bold")
+
+        left_col_x = card.rect.x + MOVE_CARD_LAYOUT["left_col_x"]
+        right_col_x = card.rect.x + MOVE_CARD_LAYOUT["right_col_x"]
+        right_col_width = MOVE_CARD_LAYOUT["right_col_width"]
+
+        self._draw_top_left_label(
+            left_col_x,
+            card.rect.y + MOVE_CARD_LAYOUT["name_y"],
+            card.name_text,
+            text_color,
+            size=11,
+            style="bold",
+        )
         if card.accuracy_text:
-            self._draw_top_left_label(card.rect.x + 172, card.rect.y + 4, card.accuracy_text, text_color, size=8, style="bold")
-        self._draw_top_left_label(card.rect.x + 10, card.rect.y + 18, card.power_text, text_color, size=9)
-        self._draw_top_left_label(card.rect.x + 10, card.rect.y + 31, card.meta_text, text_color, size=9)
-        self._draw_wrapped_top_left_block(card.rect.x + 132, card.rect.y + 18, card.effect_text, MOVE_EFFECT_WRAP_WIDTH, text_color, size=8, max_lines=2)
+            accuracy_text = self._truncate_line(card.accuracy_text, right_col_width, size=8, style="bold")
+            accuracy_width, _ = self._measure_text_size(accuracy_text, size=8, style="bold")
+            accuracy_left = right_col_x + max(0, right_col_width - accuracy_width)
+            self._draw_top_left_label(
+                accuracy_left,
+                card.rect.y + MOVE_CARD_LAYOUT["accuracy_y"],
+                accuracy_text,
+                text_color,
+                size=8,
+                style="bold",
+            )
+        self._draw_top_left_label(left_col_x, card.rect.y + MOVE_CARD_LAYOUT["power_y"], card.power_text, text_color, size=9)
+        self._draw_top_left_label(left_col_x, card.rect.y + MOVE_CARD_LAYOUT["meta_y"], card.meta_text, text_color, size=9)
+        self._draw_wrapped_top_left_block(
+            right_col_x,
+            card.rect.y + MOVE_CARD_LAYOUT["effect_y"],
+            card.effect_text,
+            MOVE_CARD_LAYOUT["right_col_width"],
+            text_color,
+            size=8,
+            max_lines=MOVE_CARD_LAYOUT["effect_max_lines"],
+        )
 
     def _draw_hud(
         self,
