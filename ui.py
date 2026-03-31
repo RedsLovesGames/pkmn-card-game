@@ -31,6 +31,7 @@ BUTTON_TEXT_NUDGE = 0.0
 CENTER_TEXT_NUDGE = 0.0
 TOP_LEFT_TEXT_NUDGE = 0.0
 MOVE_EFFECT_WRAP_WIDTH = 96
+MOVE_ACCURACY_MAX_WIDTH = 58
 BATTLE_LOG_WRAP_WIDTH = 396
 RESULT_WRAP_WIDTH = 360
 
@@ -329,12 +330,13 @@ class GraphicsRenderer:
         text_color = (255, 255, 255) if sum(base_fill) < 380 else (24, 24, 24)
         self._draw_panel(card.rect, fill=fill, border=(50, 50, 50), border_width=2)
         self._register_hitbox(card.rect, card.event_id, card.enabled)
-        self._draw_top_left_label(card.rect.x + 10, card.rect.y + 4, card.name_text, text_color, size=11, style="bold")
+        self._draw_top_left_label(card.rect.x + 10, card.rect.y + 6, card.name_text, text_color, size=11, style="bold")
         if card.accuracy_text:
-            self._draw_top_left_label(card.rect.x + 172, card.rect.y + 4, card.accuracy_text, text_color, size=8, style="bold")
-        self._draw_top_left_label(card.rect.x + 10, card.rect.y + 18, card.power_text, text_color, size=9)
-        self._draw_top_left_label(card.rect.x + 10, card.rect.y + 31, card.meta_text, text_color, size=9)
-        self._draw_wrapped_top_left_block(card.rect.x + 132, card.rect.y + 18, card.effect_text, MOVE_EFFECT_WRAP_WIDTH, text_color, size=8, max_lines=2)
+            accuracy_text = self._truncate_line(card.accuracy_text, MOVE_ACCURACY_MAX_WIDTH, size=7, style="bold")
+            self._draw_top_left_label(card.rect.x + 172, card.rect.y + 7, accuracy_text, text_color, size=7, style="bold")
+        self._draw_top_left_label(card.rect.x + 10, card.rect.y + 21, card.power_text, text_color, size=9)
+        self._draw_top_left_label(card.rect.x + 10, card.rect.y + 35, card.meta_text, text_color, size=9)
+        self._draw_wrapped_top_left_block(card.rect.x + 132, card.rect.y + 21, card.effect_text, MOVE_EFFECT_WRAP_WIDTH, text_color, size=7, max_lines=2)
 
     def _draw_hud(
         self,

@@ -590,7 +590,7 @@ class BattleApp:
 
             move_cards.append(
                 MoveCardState(
-                    rect=Rect(move_positions[index][0], move_positions[index][1], 238, 48),
+                    rect=Rect(move_positions[index][0], move_positions[index][1], 238, 52),
                     event_id=f"move:{index}",
                     name_text=name_text,
                     power_text=power_text,
