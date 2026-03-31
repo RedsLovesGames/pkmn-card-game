@@ -25,6 +25,7 @@ class Move:
         self.secondary: Dict = dict(data.get("secondary", {}))
         self.accuracy = data.get("accuracy", 100)
         self.pp = data.get("pp", 15)
+        self.max_pp = self.pp
 
 
 class Pokemon:

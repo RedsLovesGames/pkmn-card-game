@@ -46,7 +46,7 @@ BATTLE_CONFIG = CONFIG["battle"]
 LAYOUT = CONFIG["layout"]
 PAUSE = BATTLE_CONFIG["pause"]
 RUNTIME_CONFIG = CONFIG.get("runtime", {})
-DEFAULT_TARGET_FPS = 24
+DEFAULT_TARGET_FPS = 60
 
 TimelineEvent = Tuple[float, int, Callable[[], None]]
 ActionCallback = Callable[[str], None]
@@ -73,8 +73,10 @@ class BattleApp:
         self.force_switch = False
         self.player_sprite_pos: List[float] = []
         self.player_sprite_target: List[float] = []
+        self.player_sprite_velocity: List[float] = []
         self.enemy_sprite_pos: List[float] = []
         self.enemy_sprite_target: List[float] = []
+        self.enemy_sprite_velocity: List[float] = []
         self.player_hp_display = 1
         self.enemy_hp_display = 1
         self.mode_label = ""
@@ -84,6 +86,7 @@ class BattleApp:
         self.result_text = ""
         self.result_subtext = ""
         self.result_color = (24, 24, 24)
+        self._last_update_time = time.monotonic()
         self._reset_battle_runtime()
 
     def setup(self) -> None:
@@ -111,10 +114,12 @@ class BattleApp:
 
     def update(self) -> None:
         now = time.monotonic()
+        delta_time = max(1 / 240, min(0.1, now - self._last_update_time))
+        self._last_update_time = now
         while self.timeline and self.timeline[0][0] <= now:
             _, _, callback = heapq.heappop(self.timeline)
             callback()
-        self._update_animations()
+        self._update_animations(delta_time)
 
     def queue_call(self, delay: float, callback: Callable[[], None]) -> None:
         self.event_counter += 1
@@ -180,17 +185,22 @@ class BattleApp:
             self.renderer.draw_result_overlay(self._build_result_overlay_state())
         self.renderer.end_frame()
 
-    def _update_animations(self) -> None:
-        self._animate_sprite(self.player_sprite_pos, self.player_sprite_target)
-        self._animate_sprite(self.enemy_sprite_pos, self.enemy_sprite_target)
+    def _update_animations(self, delta_time: float) -> None:
+        self._animate_sprite(self.player_sprite_pos, self.player_sprite_target, self.player_sprite_velocity, delta_time)
+        self._animate_sprite(self.enemy_sprite_pos, self.enemy_sprite_target, self.enemy_sprite_velocity, delta_time)
         self._animate_hp()
 
-    def _animate_sprite(self, current: List[float], target: List[float]) -> None:
+    def _animate_sprite(self, current: List[float], target: List[float], velocity: List[float], delta_time: float) -> None:
+        spring = 28.0
+        damping = 10.0
         for index in range(2):
-            if abs(current[index] - target[index]) > 1:
-                current[index] += (target[index] - current[index]) * 0.23
-            else:
+            distance = target[index] - current[index]
+            velocity[index] += distance * spring * delta_time
+            velocity[index] *= max(0.0, 1.0 - damping * delta_time)
+            current[index] += velocity[index] * delta_time
+            if abs(distance) < 0.5 and abs(velocity[index]) < 3.0:
                 current[index] = target[index]
+                velocity[index] = 0.0
 
     def _animate_hp(self) -> None:
         if self.state != STATE_BATTLE or not self.player_team or not self.enemy_team:
@@ -244,8 +254,10 @@ class BattleApp:
         self.force_switch = False
         self.player_sprite_pos = list(LAYOUT["player_sprite_start"])
         self.player_sprite_target = list(LAYOUT["player_sprite_start"])
+        self.player_sprite_velocity = [0.0, 0.0]
         self.enemy_sprite_pos = list(LAYOUT["enemy_sprite_start"])
         self.enemy_sprite_target = list(LAYOUT["enemy_sprite_start"])
+        self.enemy_sprite_velocity = [0.0, 0.0]
         self.player_hp_display = 1
         self.enemy_hp_display = 1
         self.mode_label = ""
@@ -589,6 +601,7 @@ class BattleApp:
                 name_text = "RECHARGE"
                 power_text = ""
                 meta_text = "NORMAL | Status"
+                pp_text = ""
                 accuracy_text = ""
                 effect_text = ""
             else:
@@ -596,6 +609,7 @@ class BattleApp:
                 name_text = move.name.upper()
                 power_text = f"({move.power} BP)"
                 meta_text = f"{move.type.upper()} | {move.category}"
+                pp_text = f"PP {move.pp}/{move.max_pp}"
                 accuracy_text = "ACC --" if move.always_hits else f"ACC {move.accuracy}%"
                 effect_text = move.secondary.get("description", "") if move.secondary else ""
 
@@ -606,6 +620,7 @@ class BattleApp:
                     name_text=name_text,
                     power_text=power_text,
                     meta_text=meta_text,
+                    pp_text=pp_text,
                     accuracy_text=accuracy_text,
                     effect_text=effect_text,
                     move_type=move_type,
