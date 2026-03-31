@@ -56,12 +56,12 @@ def calculate_damage(attacker: Pokemon, defender: Pokemon, move: Move) -> Tuple[
     return damage, critical, type_mult
 
 
-def _build_random_enemy_team(selected_names: List[str]) -> List[Pokemon]:
+def _build_random_enemy_team(selected_names: List[str], team_size: int) -> List[Pokemon]:
     """Create a random enemy team, avoiding the player picks when possible."""
     pool = [name for name in POKEMON_NAMES if name not in selected_names]
-    if len(pool) < CONFIG["battle"]["team_size"]:
+    if len(pool) < team_size:
         pool = list(POKEMON_NAMES)
-    chosen = random.sample(pool, CONFIG["battle"]["team_size"])
+    chosen = random.sample(pool, team_size)
     return [Pokemon(name) for name in chosen]
 
 

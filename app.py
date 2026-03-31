@@ -28,10 +28,12 @@ from ui import (
     SpriteState,
     SwitchOptionState,
     SwitchOverlayState,
+    TitleScreenState,
     build_selection_cards,
 )
 
 
+STATE_TITLE = "title"
 STATE_SELECT = "select"
 STATE_BATTLE = "battle"
 
@@ -92,7 +94,8 @@ class BattleApp:
         self.selected_names: List[str] = []
         self.player_team: List[Pokemon] = []
         self.enemy_team: List[Pokemon] = []
-        self.state = STATE_SELECT
+        self.state = STATE_TITLE
+        self.team_size = int(BATTLE_CONFIG.get("team_size", 3))
         self.running = True
 
         self.timeline: List[TimelineEvent] = []
@@ -250,8 +253,21 @@ class BattleApp:
 
         if self.state == STATE_SELECT:
             self._handle_selection_event(event_id)
+        elif self.state == STATE_TITLE:
+            self._handle_title_event(event_id)
         elif self.state == STATE_BATTLE:
             self._handle_battle_event(event_id)
+
+    def _handle_title_event(self, event_id: str) -> None:
+        if event_id == "mode:3":
+            self._choose_team_mode(3)
+        elif event_id == "mode:6":
+            self._choose_team_mode(6)
+
+    def _choose_team_mode(self, team_size: int) -> None:
+        self.team_size = team_size
+        self.selected_names.clear()
+        self.state = STATE_SELECT
 
     def _handle_selection_event(self, event_id: str) -> None:
         if event_id.startswith("select:"):
@@ -273,7 +289,9 @@ class BattleApp:
         if not self.renderer:
             return
         self.renderer.begin_frame()
-        if self.state == STATE_SELECT:
+        if self.state == STATE_TITLE:
+            self.renderer.draw_title_screen(self._build_title_screen_state())
+        elif self.state == STATE_SELECT:
             self.renderer.draw_selection_screen(self._build_selection_screen_state())
         elif self.state == STATE_BATTLE:
             self.renderer.draw_battle_screen(self._build_battle_screen_state())
@@ -401,17 +419,17 @@ class BattleApp:
     def toggle_selection(self, name: str) -> None:
         if name in self.selected_names:
             self.selected_names.remove(name)
-        elif len(self.selected_names) < BATTLE_CONFIG["team_size"]:
+        elif len(self.selected_names) < self.team_size:
             self.selected_names.append(name)
 
     def clear_selection(self) -> None:
         self.selected_names.clear()
 
     def start_battle(self) -> None:
-        if len(self.selected_names) != BATTLE_CONFIG["team_size"]:
+        if len(self.selected_names) != self.team_size:
             return
         player_team = [Pokemon(name) for name in self.selected_names]
-        enemy_team = _build_random_enemy_team(self.selected_names)
+        enemy_team = _build_random_enemy_team(self.selected_names, self.team_size)
         self._enter_battle(player_team, enemy_team)
 
     def _enter_battle(self, player_team: List[Pokemon], enemy_team: List[Pokemon]) -> None:
@@ -420,7 +438,7 @@ class BattleApp:
         self.state = STATE_BATTLE
         self._reset_battle_runtime()
         self.busy = True
-        self.mode_label = "Single Battle"
+        self.mode_label = f"{self.team_size}v{self.team_size} Battle"
         self._set_active_player(0)
         self._set_active_enemy(0)
         self._set_log(f"Trainer wants to battle!\nThey sent out {self.enemy_team[self.e_idx].name.upper()}!")
@@ -499,7 +517,34 @@ class BattleApp:
         self._return_to_selection(keep_current_team=True)
 
     def close_result_and_back(self) -> None:
-        self._return_to_selection(keep_current_team=False)
+        self.selected_names.clear()
+        self.state = STATE_TITLE
+        self._reset_battle_runtime()
+
+    def _build_title_screen_state(self) -> TitleScreenState:
+        return TitleScreenState(
+            title="Pokemon Battle",
+            subtitle="Choose a game mode",
+            mode_buttons=[
+                ButtonState(
+                    "3v3 Battle",
+                    Rect(360, 300, 280, 56),
+                    "mode:3",
+                    fill=(95, 126, 210),
+                    text_color=(255, 255, 255),
+                    border_color=(34, 44, 77),
+                ),
+                ButtonState(
+                    "6v6 Battle",
+                    Rect(360, 372, 280, 56),
+                    "mode:6",
+                    fill=(75, 168, 115),
+                    text_color=(255, 255, 255),
+                    border_color=(33, 88, 57),
+                ),
+            ],
+            quit_button=ButtonState("Quit", Rect(420, 452, 160, 46), "quit"),
+        )
 
     def choose_move(self, move_index: int) -> None:
         if self.busy or self.force_switch or self.state != STATE_BATTLE:
@@ -800,14 +845,14 @@ class BattleApp:
     def _build_selection_screen_state(self) -> SelectionScreenState:
         selected_text = ", ".join(self.selected_names) if self.selected_names else "none"
         return SelectionScreenState(
-            title="Select 3 Pokemon",
+            title=f"Select {self.team_size} Pokemon ({self.team_size}v{self.team_size})",
             summary=f"Chosen: {selected_text}",
             cards=build_selection_cards(self.selected_names),
             start_button=ButtonState(
                 "Start Battle",
                 Rect(32, 654, 180, 42),
                 "start_battle",
-                enabled=len(self.selected_names) == BATTLE_CONFIG["team_size"],
+                enabled=len(self.selected_names) == self.team_size,
                 fill=(95, 126, 210),
                 text_color=(255, 255, 255),
                 border_color=(34, 44, 77),

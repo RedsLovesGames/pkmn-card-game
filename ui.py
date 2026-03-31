@@ -179,6 +179,14 @@ class SelectionScreenState:
 
 
 @dataclass
+class TitleScreenState:
+    title: str
+    subtitle: str
+    mode_buttons: List[ButtonState]
+    quit_button: ButtonState
+
+
+@dataclass
 class BattleScreenState:
     mode_label: str
     battle_log_text: str
@@ -312,6 +320,14 @@ class GraphicsRenderer:
 
         self._draw_button(state.start_button)
         self._draw_button(state.clear_button)
+
+    def draw_title_screen(self, state: TitleScreenState) -> None:
+        self._reset_battle_layers()
+        self._draw_center_label(WINDOW_WIDTH // 2, 176, state.title, (245, 245, 245), size=40, style="bold")
+        self._draw_center_label(WINDOW_WIDTH // 2, 232, state.subtitle, (210, 210, 210), size=16)
+        for button in state.mode_buttons:
+            self._draw_button(button)
+        self._draw_button(state.quit_button)
 
     def draw_battle_screen(self, state: BattleScreenState) -> None:
         self._in_battle_frame = True
