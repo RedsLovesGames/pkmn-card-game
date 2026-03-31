@@ -43,7 +43,8 @@ MOVE_CARD_LAYOUT = {
     "pp_y": 4,
     "accuracy_y": 15,
     "effect_y": 28,
-    "effect_max_lines": 1,
+    "effect_font_size": 7,
+    "effect_max_lines": 2,
 }
 
 MeasureTextFn = Callable[[str, int, str], Tuple[int, int]]
@@ -359,10 +360,12 @@ class GraphicsRenderer:
         self._active_draw_layer = self._battle_dynamic_items
         self._draw_sprite(state.enemy_sprite, field_origin)
         self._draw_sprite(state.player_sprite, field_origin)
-        self._active_draw_layer = None
-        self._register_hitbox(state.switch_button.rect, state.switch_button.event_id, state.switch_button.enabled)
-        self._register_hitbox(state.back_button.rect, state.back_button.event_id, state.back_button.enabled)
-        self._register_hitbox(state.quit_button.rect, state.quit_button.event_id, state.quit_button.enabled)
+
+        self._draw_top_left_label(26, 426, state.mode_label, (245, 245, 245), size=12)
+        self._draw_panel(Rect(20, 446, 430, 126), fill=(244, 244, 236), border=(50, 50, 50), border_width=3)
+        self._draw_wrapped_top_left_block(36, 464, state.battle_log_text, BATTLE_LOG_WRAP_WIDTH, (24, 24, 24), size=13)
+
+        self._draw_panel(Rect(464, 446, 516, 140), fill=(244, 244, 236), border=(50, 50, 50), border_width=3)
         for move_card in state.move_cards:
             self._register_hitbox(move_card.rect, move_card.event_id, move_card.enabled)
 
@@ -448,6 +451,13 @@ class GraphicsRenderer:
                 size=8,
                 style="bold",
             )
+        pp_height = self._measure_text_size("PP 99/99", size=8, style="bold")[1]
+        accuracy_height = self._measure_text_size("ACC 100%", size=8, style="bold")[1]
+        effect_top = max(
+            card.rect.y + MOVE_CARD_LAYOUT["effect_y"],
+            card.rect.y + MOVE_CARD_LAYOUT["pp_y"] + pp_height + 2,
+            card.rect.y + MOVE_CARD_LAYOUT["accuracy_y"] + accuracy_height + 2,
+        )
         self._draw_top_left_label(
             left_col_x,
             card.rect.y + MOVE_CARD_LAYOUT["power_y"],
@@ -464,11 +474,11 @@ class GraphicsRenderer:
         )
         self._draw_wrapped_top_left_block(
             right_col_x,
-            card.rect.y + MOVE_CARD_LAYOUT["effect_y"],
+            effect_top,
             card.effect_text,
             MOVE_CARD_LAYOUT["right_col_width"],
             text_color,
-            size=8,
+            size=MOVE_CARD_LAYOUT["effect_font_size"],
             max_lines=MOVE_CARD_LAYOUT["effect_max_lines"],
         )
 

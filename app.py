@@ -593,7 +593,7 @@ class BattleApp:
 
     def _build_move_cards(self, player: Pokemon, enabled: bool) -> List[MoveCardState]:
         move_cards: List[MoveCardState] = []
-        move_positions = [(478, 458), (724, 458), (478, 512), (724, 512)]
+        move_positions = [(478, 454), (724, 454), (478, 520), (724, 520)]
 
         for index, move in enumerate(player.moves):
             if player.needs_recharge:
@@ -615,7 +615,7 @@ class BattleApp:
 
             move_cards.append(
                 MoveCardState(
-                    rect=Rect(move_positions[index][0], move_positions[index][1], 238, 48),
+                    rect=Rect(move_positions[index][0], move_positions[index][1], 238, 60),
                     event_id=f"move:{index}",
                     name_text=name_text,
                     power_text=power_text,

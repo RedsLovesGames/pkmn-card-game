@@ -16,6 +16,7 @@ class Move:
         self.name = name
         self.power = data["power"]
         self.category = data["category"]
+        self.is_struggle = bool(data.get("is_struggle", False))
         self.fixed = bool(data.get("fixed", False))
         self.recharge = bool(data.get("recharge", False))
         self.always_hits = bool(data.get("always_hits", False))
