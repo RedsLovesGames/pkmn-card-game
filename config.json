@@ -51,6 +51,10 @@
     ]
   },
   "runtime": {
-    "fps": 24
+    "fps": 24,
+    "max_fps": 60,
+    "min_fps": 30,
+    "adaptive_fps": true,
+    "low_cpu_mode": false
   }
 }

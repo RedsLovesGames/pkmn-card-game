@@ -47,6 +47,15 @@ LAYOUT = CONFIG["layout"]
 PAUSE = BATTLE_CONFIG["pause"]
 RUNTIME_CONFIG = CONFIG.get("runtime", {})
 DEFAULT_TARGET_FPS = 60
+DEFAULT_MIN_FPS = 30
+DEFAULT_MAX_FPS = 60
+FRAME_TIME_ALPHA = 0.1
+FRAME_BUDGET_OVERRUN_MULTIPLIER = 1.08
+FRAME_BUDGET_RECOVERY_MULTIPLIER = 0.85
+FRAME_OVERRUN_STREAK_TO_DEGRADE = 6
+FRAME_RECOVERY_STREAK_TO_UPGRADE = 120
+LOW_CPU_LOG_MAX_LINES = 2
+LOW_CPU_LOG_MAX_LINE_LENGTH = 40
 
 TimelineEvent = Tuple[float, int, Callable[[], None]]
 ActionCallback = Callable[[str], None]
@@ -57,7 +66,14 @@ class BattleApp:
 
     def __init__(self, renderer: Optional[GraphicsRenderer] = None) -> None:
         self.renderer = renderer
+        self.adaptive_fps_enabled = bool(RUNTIME_CONFIG.get("adaptive_fps", True))
+        self.low_cpu_mode = bool(RUNTIME_CONFIG.get("low_cpu_mode", False))
+        self.min_fps = DEFAULT_MIN_FPS
+        self.max_fps = DEFAULT_MAX_FPS
         self.target_fps = self._resolve_target_fps()
+        self.frame_duration_avg = 1 / max(1, self.target_fps)
+        self._frame_overrun_streak = 0
+        self._frame_recovery_streak = 0
         self.selected_names: List[str] = []
         self.player_team: List[Pokemon] = []
         self.enemy_team: List[Pokemon] = []
@@ -97,20 +113,81 @@ class BattleApp:
 
     def run(self) -> None:
         while self.running and self.renderer and self.renderer.is_open():
+            frame_start = time.monotonic()
             self.update()
             self._handle_inputs()
             self._render()
-            time.sleep(1 / self.target_fps)
+            frame_work_duration = time.monotonic() - frame_start
+            self._update_frame_timing(frame_work_duration)
+            remaining_sleep = max(0.0, (1 / max(1, self.target_fps)) - frame_work_duration)
+            if remaining_sleep > 0:
+                time.sleep(remaining_sleep)
         if self.renderer:
             self.renderer.close_window()
 
     def _resolve_target_fps(self) -> int:
-        raw_target_fps = RUNTIME_CONFIG.get("fps", DEFAULT_TARGET_FPS)
+        raw_target_fps = RUNTIME_CONFIG.get("fps", RUNTIME_CONFIG.get("max_fps", DEFAULT_TARGET_FPS))
+        raw_min_fps = RUNTIME_CONFIG.get("min_fps", DEFAULT_MIN_FPS)
+        raw_max_fps = RUNTIME_CONFIG.get("max_fps", DEFAULT_MAX_FPS)
         try:
             target_fps = int(raw_target_fps)
         except (TypeError, ValueError):
             target_fps = DEFAULT_TARGET_FPS
-        return max(1, target_fps)
+        try:
+            min_fps = int(raw_min_fps)
+        except (TypeError, ValueError):
+            min_fps = DEFAULT_MIN_FPS
+        try:
+            max_fps = int(raw_max_fps)
+        except (TypeError, ValueError):
+            max_fps = DEFAULT_MAX_FPS
+
+        min_fps = max(1, min_fps)
+        max_fps = max(min_fps, max_fps)
+        self.min_fps = min_fps
+        self.max_fps = max_fps
+        return min(self.max_fps, max(self.min_fps, target_fps))
+
+    def _update_frame_timing(self, frame_duration: float) -> None:
+        self.frame_duration_avg = (
+            (1.0 - FRAME_TIME_ALPHA) * self.frame_duration_avg + FRAME_TIME_ALPHA * frame_duration
+        )
+        if not self.adaptive_fps_enabled:
+            return
+
+        budget = 1 / max(1, self.target_fps)
+        if self.frame_duration_avg > budget * FRAME_BUDGET_OVERRUN_MULTIPLIER:
+            self._frame_overrun_streak += 1
+            self._frame_recovery_streak = 0
+        elif self.frame_duration_avg < budget * FRAME_BUDGET_RECOVERY_MULTIPLIER:
+            self._frame_recovery_streak += 1
+            self._frame_overrun_streak = 0
+        else:
+            self._frame_overrun_streak = 0
+            self._frame_recovery_streak = 0
+
+        if self._frame_overrun_streak >= FRAME_OVERRUN_STREAK_TO_DEGRADE:
+            lower_fps = self._next_adaptive_fps(-1)
+            if lower_fps != self.target_fps:
+                self.target_fps = lower_fps
+                self._frame_overrun_streak = 0
+            return
+
+        if self._frame_recovery_streak >= FRAME_RECOVERY_STREAK_TO_UPGRADE:
+            higher_fps = self._next_adaptive_fps(1)
+            if higher_fps != self.target_fps:
+                self.target_fps = higher_fps
+                self._frame_recovery_streak = 0
+
+    def _next_adaptive_fps(self, direction: int) -> int:
+        steps = sorted({self.min_fps, self.max_fps, 30, 40, 60})
+        current_step = min(steps, key=lambda fps: abs(fps - self.target_fps))
+        current_index = steps.index(current_step)
+        if direction > 0:
+            next_index = min(len(steps) - 1, current_index + 1)
+        else:
+            next_index = max(0, current_index - 1)
+        return steps[next_index]
 
     def update(self) -> None:
         now = time.monotonic()
@@ -191,14 +268,22 @@ class BattleApp:
         self._animate_hp()
 
     def _animate_sprite(self, current: List[float], target: List[float], velocity: List[float], delta_time: float) -> None:
-        spring = 28.0
-        damping = 10.0
+        if self.low_cpu_mode:
+            spring = 18.0
+            damping = 8.0
+            settle_distance = 1.0
+            settle_velocity = 6.0
+        else:
+            spring = 28.0
+            damping = 10.0
+            settle_distance = 0.5
+            settle_velocity = 3.0
         for index in range(2):
             distance = target[index] - current[index]
             velocity[index] += distance * spring * delta_time
             velocity[index] *= max(0.0, 1.0 - damping * delta_time)
             current[index] += velocity[index] * delta_time
-            if abs(distance) < 0.5 and abs(velocity[index]) < 3.0:
+            if abs(distance) < settle_distance and abs(velocity[index]) < settle_velocity:
                 current[index] = target[index]
                 velocity[index] = 0.0
 
@@ -295,6 +380,10 @@ class BattleApp:
         self.busy = False
 
     def _set_log(self, text: str) -> None:
+        if self.low_cpu_mode:
+            lines = text.splitlines() or [text]
+            trimmed = [line[:LOW_CPU_LOG_MAX_LINE_LENGTH] for line in lines[:LOW_CPU_LOG_MAX_LINES]]
+            text = "\n".join(trimmed)
         self.battle_log_text = text
 
     def _return_to_selection(self, keep_current_team: bool) -> None:
@@ -434,12 +523,22 @@ class BattleApp:
         self.player_sprite_target = player_base
         self.enemy_sprite_target = enemy_base
 
+        player_push = 54
+        enemy_push = 54
+        player_reaction = 24
+        enemy_reaction = 24
+        vertical_offset = 6
+        if self.low_cpu_mode:
+            player_reaction = 0
+            enemy_reaction = 0
+            vertical_offset = 0
+
         if side == ENEMY_SIDE:
-            self.enemy_sprite_target = [enemy_base[0] - 54, enemy_base[1] + 6]
-            self.player_sprite_target = [player_base[0] - 24, player_base[1] + 4]
+            self.enemy_sprite_target = [enemy_base[0] - enemy_push, enemy_base[1] + vertical_offset]
+            self.player_sprite_target = [player_base[0] - player_reaction, player_base[1]]
         else:
-            self.player_sprite_target = [player_base[0] + 54, player_base[1] - 6]
-            self.enemy_sprite_target = [enemy_base[0] + 24, enemy_base[1] - 4]
+            self.player_sprite_target = [player_base[0] + player_push, player_base[1] - vertical_offset]
+            self.enemy_sprite_target = [enemy_base[0] + enemy_reaction, enemy_base[1]]
 
         def recoil() -> None:
             self.player_sprite_target = list(LAYOUT["player_sprite_target"])
