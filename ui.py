@@ -80,6 +80,14 @@ def type_color_rgb(type_name: str) -> Tuple[int, int, int]:
     return (int(color[0]), int(color[1]), int(color[2]))
 
 
+def hp_bar_color(ratio: float) -> Tuple[int, int, int]:
+    if ratio > 0.50:
+        return (58, 184, 88)
+    if ratio > 0.20:
+        return (232, 196, 52)
+    return (212, 68, 68)
+
+
 def get_sprite_path(name: str, is_back: bool) -> Optional[str]:
     folder = BACK_SPRITE_DIR if is_back else FRONT_SPRITE_DIR
     gif_path = folder / f"{name.lower()}.gif"
@@ -510,7 +518,7 @@ class GraphicsRenderer:
         self._draw_top_left_label(x + 60, y + 14, f"{hud.name.upper()}  |  {hud.poke_type.upper()}{status_suffix}", (24, 24, 24), size=12)
         bar_width = 260 if prefix == "FOE" else 300
         ratio = hud.hp_display / hud.max_hp if hud.max_hp else 0.0
-        self._draw_progress_bar(Rect(x + 12, y + 42, bar_width, 16), ratio, prefix_color)
+        self._draw_progress_bar(Rect(x + 12, y + 42, bar_width, 16), ratio, hp_bar_color(ratio))
         hp_text = f"HP {int(max(0, hud.hp_display))}/{hud.max_hp}" if hud.hp_display > 0 else f"HP 0/{hud.max_hp}  |  FAINTED"
         self._draw_top_left_label(x + 12, y + 66, hp_text, (68, 68, 68), size=11)
 
