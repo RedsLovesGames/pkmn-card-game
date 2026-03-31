@@ -45,6 +45,8 @@ ENEMY_SIDE = "enemy"
 BATTLE_CONFIG = CONFIG["battle"]
 LAYOUT = CONFIG["layout"]
 PAUSE = BATTLE_CONFIG["pause"]
+RUNTIME_CONFIG = CONFIG.get("runtime", {})
+DEFAULT_TARGET_FPS = 24
 
 TimelineEvent = Tuple[float, int, Callable[[], None]]
 ActionCallback = Callable[[str], None]
@@ -55,6 +57,7 @@ class BattleApp:
 
     def __init__(self, renderer: Optional[GraphicsRenderer] = None) -> None:
         self.renderer = renderer
+        self.target_fps = self._resolve_target_fps()
         self.selected_names: List[str] = []
         self.player_team: List[Pokemon] = []
         self.enemy_team: List[Pokemon] = []
@@ -94,9 +97,17 @@ class BattleApp:
             self.update()
             self._handle_inputs()
             self._render()
-            time.sleep(1 / 60)
+            time.sleep(1 / self.target_fps)
         if self.renderer:
             self.renderer.close_window()
+
+    def _resolve_target_fps(self) -> int:
+        raw_target_fps = RUNTIME_CONFIG.get("fps", DEFAULT_TARGET_FPS)
+        try:
+            target_fps = int(raw_target_fps)
+        except (TypeError, ValueError):
+            target_fps = DEFAULT_TARGET_FPS
+        return max(1, target_fps)
 
     def update(self) -> None:
         now = time.monotonic()
